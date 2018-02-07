@@ -224,4 +224,15 @@ Others:
 	
 
 
+Training & Development: 
+It is a web application to provide softskills trainings to company employees.Through admin area,Admin can provide manage trainings,set audience,see trainings' feedback,upload training materials,videos,presentation etc.Through trainee area,users can take assements and give feedback on completion.
+webforms,windows services,
+
+Recruiment system:
+Application to manage recruitment cycle of candidate including managing profile,communication,scheduling,assessment etc.
+webforms,Crystal reports,windows services,
+
+BOlJob Program:
+A website to enroll news/sales professionals to different trainig programs organinzed by Bol.
+
 
