@@ -1,0 +1,4312 @@
+AccountViews.txt
+
+Login.Cshtml
+
+
+@model Automobile.Admin.Models.LoginViewModel
+@{    
+    Layout = null;
+}
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Log in</title>
+    <link rel="icon" type="image/png" href="~/Assets/img/favicon.ico">
+    <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+    <link href="~/Assets/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <!-- Theme style -->
+    <link href="~/Assets/css/AdminLTE.min.css" rel="stylesheet" />
+    <style>
+        .field-validation-valid {
+            display: none;
+        }
+
+        input.input-validation-error {
+            border: 1px solid #b94a48;
+        }
+
+        .field-validation-error {
+            color: #b94a48;
+        }
+
+        .validation-summary-errors {
+            color: #b94a48;
+        }
+
+        ul {
+            list-style: none;
+            padding-left: 0px;
+        }
+    </style>
+</head>
+
+<body class="hold-transition login-page">
+    <div class="login-box">
+        <div class="login-logo">
+            <img src='@Url.Content("~/Assets/img/logo.png")' width="80" height="60" alt="Logo">
+            <b>Autos Trading</b>
+        </div>        
+        <div class="login-box-body">
+            <p class="login-box-msg">Log in to start your session</p>
+            @using (Html.BeginForm("Login", "Account", new { ReturnUrl = ViewBag.ReturnUrl }, FormMethod.Post, new { role = "form" }))
+            {
+                @Html.AntiForgeryToken()
+                <div class="form-group has-feedback">
+                    @Html.TextBoxFor(m => m.UserName, new { @placeholder = "Enter Username", @class = "form-control" })
+                    @Html.ValidationMessageFor(m => m.UserName)
+                    <span class="glyphicon glyphicon-envelope form-control-feedback"></span>
+                </div>
+                <div class="form-group has-feedback">
+                    @Html.PasswordFor(m => m.Password, new { @placeholder = "Enter Password", @class = "form-control" })
+                    @Html.ValidationMessageFor(m => m.Password)
+                    <span class="glyphicon glyphicon-lock form-control-feedback"></span>
+                </div>
+                <div class="row">                    
+                    <div class="col-xs-12">
+                        <button type="submit" class="btn btn-primary btn-block btn-flat">Log In</button>
+                    </div>                    
+                </div>
+            }
+        </div>        
+    </div>
+</body>
+
+
+
+------------------------------
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+AutoMobileAdminController.txt
+
+-------------
+ShipmentController.cs
+
+
+using System;
+using System.Collections.Generic;
+using System.Web.Mvc;
+using System.Data;
+using JTJapan.Core;
+using JTJapan.Core.Helper;
+using JTJapan.Core.AdminArea;
+using JTJapan.Core.AdminArea.ViewModel;
+using Newtonsoft.Json;
+using System.Configuration;
+using Automobile.Admin.Models;
+namespace Automobile.Admin.Controllers
+{
+    public class ShipmentController : BaseController
+    {
+        public int Count = 0;
+
+        #region CarPending
+        // CarPending 
+
+        [HttpGet]
+        public ActionResult CarPending()
+        {
+            ViewBag.Title = "Cars Pending";
+            return View(GetPendingShipmentDetails(1, 10000, null));
+        }
+
+
+        [HttpGet]
+        [ActionName("CarPendingExportToExcel")]
+        public void ExportToExcel()
+        {
+            DataSet ExportData = ShipmentReportMethods.GetPendingShipments(null, null, AuthBase.ClientId, null);
+            Utilities.ExportToExcel(ExportData.Tables[0],"UnitReceivingPending");
+        }
+
+
+        [HttpPost]
+        [ValidateInput(false)]
+        public ActionResult CarPending(string txtChassisNo)
+        {
+            return View(GetPendingShipmentDetails(1, 10000, txtChassisNo == "" ? null : txtChassisNo));
+        }
+
+        [HttpGet]
+        public JsonResult CarPendingSearch(string txtChassisNo)
+        {
+            ViewBag.Title = "Cars Pending";
+            return Json(GetPendingShipmentDetails(1, 10000, txtChassisNo), JsonRequestBehavior.AllowGet);
+        }
+
+        [HttpPost]
+        [ValidateInput(false)]
+        public string UpdateShipmentDetail(CarPendingData[] customerproductinvoiceids)
+        {
+
+            string msg = "";
+            if (customerproductinvoiceids != null)
+            {
+                try
+                {
+                    foreach (CarPendingData cpdata in customerproductinvoiceids)
+                    {
+                        if (!string.IsNullOrEmpty(cpdata.cpid) && !string.IsNullOrEmpty(cpdata.stockid) && cpdata.stockid.Length < 15 && CheckInput(cpdata.stockid))
+                            TransportMethods.UpdateTransportationStatusCPI(Convert.ToInt32(cpdata.cpid), Constants.OG_UnitTransportationStatus.UnitReceivedatYard.GetHashCode(), AuthBase.ClientId, AuthBase.UserId, cpdata.stockid);
+                    }
+                    msg = "success";
+                }
+                catch (Exception ex)
+                {
+                    msg = ex.Message;
+                }
+            }
+            else
+            {
+                msg = "Please Select Record";
+            }
+            return msg;
+        }
+
+        #endregion
+
+
+        #region CarInspection
+
+
+        //CarInspection
+
+        [HttpGet]
+        public ActionResult CarInspection()
+        {
+            ViewBag.Title = "Cars Inspection";
+            return View(GetPendingInspections(DateTime.Now, DateTime.Now, 1, 10000, null));
+        }
+
+        [HttpPost]
+        [ValidateInput(false)]
+        public ActionResult CarInspection(string txtChassisNo)
+        {
+            return View(GetPendingInspections(DateTime.Now, DateTime.Now, 1, 10000, txtChassisNo == "" ? null : txtChassisNo));
+        }
+
+        [HttpGet]
+        public ActionResult _SendEmailPreview(string CustomerProductInvoiceId,string Ins)
+        {
+            try
+            {
+                ViewBag.CustomerProductInvoiceId = CustomerProductInvoiceId;
+                List<InspectionEmailModel> model = new List<InspectionEmailModel>();
+                List<InspectionEmailModel> response = new List<InspectionEmailModel>();
+                string Link = "";
+                SecureQueryString ObjSecureQueryString = new SecureQueryString();
+                Link = ObjSecureQueryString.encrypt("id=" + CustomerProductInvoiceId + "&type=" + 3);
+                model = ShipmentReportMethods.GetEmailForPreview(Convert.ToInt32(CustomerProductInvoiceId));
+                InspectionEmailModel obj = new InspectionEmailModel();
+                obj = model[0];
+                obj.EmailBody = obj.EmailBody.Replace("[Var_Shipper]", obj.Shipper);
+                obj.EmailBody = obj.EmailBody.Replace("[Var_InspectionType]", Ins);
+                obj.EmailBody = obj.EmailBody.Replace("[Var_TransportVendor]", obj.TransportVendor);
+                obj.EmailBody = obj.EmailBody.Replace("[Var_Chassis]", obj.ChassisNumber);
+                obj.EmailBody = obj.EmailBody.Replace("[Var_Year]", obj.ModelYear);
+                obj.EmailBody = obj.EmailBody.Replace("[Var_Make]", obj.Make);
+                obj.EmailBody = obj.EmailBody.Replace("[Var_Model]", obj.Model);
+                obj.EmailBody = obj.EmailBody.Replace("[Var_Port]", obj.Port);
+                obj.EmailBody = obj.EmailBody.Replace("[Var_Country]", obj.Country);
+                obj.EmailBody = obj.EmailBody.Replace("[Var_PurVendor]", obj.PurchaseVendorId);
+                obj.EmailBody = obj.EmailBody.Replace("[Var_PurDate]", obj.PurchaseDate);
+                obj.EmailBody = obj.EmailBody.Replace("[VAR_Parameter]", Link);
+                response.Add(obj);
+                return PartialView(response);
+            }
+            catch
+            {
+
+                return null;
+            }
+        }
+
+        [HttpPost]
+        [ValidateInput(false)]
+        public string InsertEmailTemplate(string customerproductinvoiceid, string fromemail, string toemail,string ccemail ,string body, string tmpId = "0")
+        {
+            try
+            {
+                ShipmentReportMethods.InsertEmailTemplateForInspection(Convert.ToInt32(customerproductinvoiceid), AuthBase.ClientId, fromemail, toemail, ccemail , int.Parse(tmpId), body);
+                return "success";
+            }
+            catch (Exception ex) { return "error"; }
+        }
+
+        [HttpPost]
+        public string UpdateInspectionDetail(object customerproductinvoiceids)
+        {
+            string msg = "";
+            if (customerproductinvoiceids != null)
+            {
+                string[] customerproductids = (string[])customerproductinvoiceids;
+                try
+                {
+                    foreach (string pid in customerproductids)
+                    {
+                        if (pid != null && pid != "" && pid != "0")
+                            DocumentMethod.UpdateProductDocumentStatus(Convert.ToInt32(pid), Constants.DocumentType.InspectionCertificate.GetHashCode(), Constants.OG_ProductDocumentStatus.InspectionRequested.GetHashCode());
+                    }
+                    msg = "success";
+                }
+                catch (Exception ex)
+                {
+                    msg = ex.Message;
+                }
+            }
+            else
+            {
+                msg = "Please Select Record";
+            }
+            return msg;
+        }
+
+        #endregion
+
+        #region Car Inspection Request
+
+        // Car inspection Approval
+
+        [HttpGet]
+        public ActionResult CarInspectionRequest()
+        {
+            ViewBag.Title = "Cars Inspection Request Pending";
+            return View(GetPendingInspectionRequests(DateTime.Now, DateTime.Now, 1, 10000, null));
+        }
+        [HttpPost]
+        [ValidateInput(false)]
+        public ActionResult CarInspectionRequest(string txtChassisNo)
+        {
+            return View(GetPendingInspectionRequests(DateTime.Now, DateTime.Now, 1, 10000, txtChassisNo == "" ? null : txtChassisNo));
+        }
+        [HttpPost]
+        public string UpdateInspectionRequestDetail(object customerproductinvoiceids, string cmd,string inspectId=null,string comment = null)
+        {
+            string msg = "";
+            if (customerproductinvoiceids != null)
+            {
+                string[] customerproductids = (string[])customerproductinvoiceids;
+                try
+                {
+                    foreach (string pid in customerproductids)
+                    {
+                        if (pid != null && pid != "" && pid != "0")
+                        {
+                            if (cmd == "1")
+                                DocumentMethod.UpdateProductDocumentStatus(Convert.ToInt32(pid), Constants.DocumentType.InspectionCertificate.GetHashCode(), Constants.OG_ProductDocumentStatus.InpectionPassed.GetHashCode());
+                            if (cmd == "0")
+                             {
+                                DocumentMethod.UpdateProductDocumentStatus(Convert.ToInt32(pid), Constants.DocumentType.InspectionCertificate.GetHashCode(), Constants.OG_ProductDocumentStatus.InpectionFailed.GetHashCode());
+                                DocumentMethod.UpdateCustomerInvoiceInspection(Convert.ToInt32(pid), Convert.ToInt32(inspectId == null ? "0" : inspectId), comment);
+                            }
+                        }
+                    }
+                    msg = "success";
+                }
+                catch (Exception ex)
+                {
+                    msg = ex.Message;
+                }
+            }
+            else
+            {
+                msg = "Please Select Record";
+            }
+            return msg;
+        }
+
+        [HttpGet]
+        public ActionResult _FailDetailModal(string customerproductinvoiceid)
+        {
+            ViewData["InvoiceId"] = customerproductinvoiceid;
+            return PartialView(ShipmentReportMethods.GetAlterationListwise());   
+        }
+
+        [HttpPost]
+        public string FailDetailModal(CarInspectionRequestFailData input)
+        {
+            if(input.actionType==0)
+            {
+               int invoiceAlterationId = DocumentMethod.UpdateCustomerInvoiceAlteration(input.cpid, input.reqComment);
+                foreach (string val in input.AlterType)
+                {
+                    bool result = ShipmentReportMethods.InsertInspectionFail(Convert.ToInt32(val), invoiceAlterationId, input.cpid);               
+                }
+            }
+            else if (input.actionType == 1)
+            {
+                DocumentMethod.UpdateProductDocumentStatus(input.cpid, Constants.DocumentType.InspectionCertificate.GetHashCode(), Constants.OG_ProductDocumentStatus.InpectionFailed.GetHashCode());              
+            }
+             return "";
+          }
+        #endregion
+
+        #region Inspection Certificate Request
+
+        [HttpGet]
+        public ActionResult InspectionCertificateRequest()
+        {
+            ViewBag.Title = "Cars Inspection Certificate";
+            return View(GetInspectionsForCertificate(DateTime.Now, DateTime.Now, 1, 10000, null));
+        }
+        [HttpPost]
+        [ValidateInput(false)]
+        public ActionResult InspectionCertificateRequest(string txtChassisNo)
+        {
+            return View(GetInspectionsForCertificate(DateTime.Now, DateTime.Now, 1, 10000, txtChassisNo == "" ? null : txtChassisNo));
+        }
+        [HttpPost]
+        public string UpdateInspectionCertificateRequest(object customerproductinvoiceids)
+        {
+            string msg = "";
+            if (customerproductinvoiceids != null)
+            {
+                string[] customerproductids = (string[])customerproductinvoiceids;
+                try
+                {
+                    foreach (string pid in customerproductids)
+                    {
+                        DocumentMethod.UpdateProductDocumentStatus(Convert.ToInt32(pid), Constants.DocumentType.InspectionCertificate.GetHashCode(), Constants.OG_ProductDocumentStatus.Inspection_Certificate_Requested.GetHashCode());
+
+                    }
+                    msg = "success";
+                }
+                catch (Exception ex)
+                {
+                    msg = ex.Message;
+                }
+            }
+            else
+            {
+                msg = "Please Select Record";
+            }
+            return msg;
+        }
+
+
+
+        #endregion
+
+        #region Alteration
+
+        // Alteration Pending
+
+        [HttpGet]
+        public ActionResult AlterationPending()
+        {
+            ViewBag.Vendor = OGMethods.GetVendorList();
+            return View(GetPendingAlterations(DateTime.Now, DateTime.Now, 1, 10000, null));
+        }
+
+        [HttpPost]
+        public ActionResult AlterationPending(string txtChassisNo)
+        {
+            ViewBag.Vendor = OGMethods.GetVendorList();
+            return View(GetPendingAlterations(DateTime.Now, DateTime.Now, 1, 10000, txtChassisNo == "" ? null : txtChassisNo));
+        }
+
+        [HttpPost]
+        public string UpdateAlterationPending(ExportVendorModel objects)
+        {
+
+            string msg = "";
+            if (objects != null)
+            {
+                try
+                {
+                    foreach (var obj in objects.UpdateListOfVendorModel)
+                    {
+                        if (obj.cpid != 0)
+                        {
+                            DocumentMethod.UpdateCustomerInvoiceAlteration(Convert.ToInt32(obj.cpid), obj.vendid, obj.comments);
+                            DocumentMethod.UpdateProductDocumentStatus(Convert.ToInt32(obj.cpid), Constants.DocumentType.Alteration.GetHashCode(), Constants.OG_ProductDocumentStatus.Alteration_Requested.GetHashCode());
+                        }
+                    }
+                    msg = "success";
+                }
+                catch (Exception ex)
+                {
+                    msg = ex.Message;
+                }
+            }
+            else
+            {
+                msg = "Please Select Record";
+            }
+            return msg;
+        }
+
+        [HttpGet]
+        [ActionName("AlterationPendingExportToExcel")]
+        public void ExportToExcel1()
+        {
+            DataSet ExportData = ShipmentReportMethods.GetPendingAlterations(DateTime.Now, DateTime.Now, null, null, AuthBase.ClientId, null);
+            Utilities.ExportToExcel(ExportData.Tables[0], "AlterationPending");
+        }
+        #endregion
+
+
+        #region AlterationPendingRequest
+        //Alteration Pending request
+
+        [HttpGet]
+        public ActionResult AlterationRequestPending()
+        {
+            return View(GetPendingAlterationRequest(DateTime.Now, DateTime.Now, 1, 10000, null));
+        }
+
+        [HttpPost]
+        public ActionResult AlterationRequestPending(string txtChassisNo)
+        {
+            return View(GetPendingAlterationRequest(DateTime.Now, DateTime.Now, 1, 10000, txtChassisNo == "" ? null : txtChassisNo));
+        }
+        [HttpPost]
+        public string UpdateAlterationRequestPending(AlterationPendingComment[] objects)
+        {
+
+            string msg = "";
+            if (objects != null)
+            {
+                try
+                {
+                    foreach (var obj in objects)
+                    {
+                        if (!string.IsNullOrEmpty(obj.cpid))
+                            DocumentMethod.Update_CustomerInvoiceAlteration(Convert.ToInt32(obj.cpid), obj.comment);
+                        DocumentMethod.UpdateProductDocumentStatus(Convert.ToInt32(obj.cpid), Constants.DocumentType.Alteration.GetHashCode(), Constants.OG_ProductDocumentStatus.Alteration_Done.GetHashCode());
+                    }
+                    msg = "success";
+                }
+                catch (Exception ex)
+                {
+                    msg = ex.Message;
+                }
+            }
+            else
+            {
+                msg = "Please Select Record";
+            }
+            return msg;
+        }
+
+        public class CarPendingData
+        {
+            public string cpid { get; set; }
+            public string stockid { get; set; }
+        }
+
+        public class AlterationPendingComment
+        {
+            public string cpid { get; set; }
+            public string comment { get; set; }
+        }
+
+        [HttpGet]
+        [ActionName("AlterationRequestPendingExportToExcel")]
+        public void ExportToExcel2()
+        {
+            DataSet ExportData = ShipmentReportMethods.GetPendingAlterationRequests(DateTime.Now, DateTime.Now, null, null, AuthBase.ClientId, null);
+            Utilities.ExportToExcel(ExportData.Tables[0], "AlterationRequestPending");
+        }
+        #endregion
+
+        #region Internal methods
+        //Methods internal.
+
+        protected bool CheckInput(string input)
+        {
+            if (input.Contains("<") || input.Contains(">") || input.Contains("</") || input.Contains("="))
+                return false;
+            else
+                return true;
+
+        }
+
+        protected List<ShippingYard> GetPendingShipmentDetails(int? PageNum, int? PageSize, string ChasisNo)
+        {
+            DataSet dt = new DataSet();
+            dt = JTJapan.Core.AdminArea.ShipmentReportMethods.GetPendingShipments(PageNum, PageSize, AuthBase.ClientId, ChasisNo);
+
+            ViewData["MissingChassis"] = EnumerableExtension.ToList<MissingChassis>(dt.Tables[3]);
+            try
+            {
+
+                int totalVendors = dt.Tables[0].Rows.Count;
+                List<ShippingYard> lstVendorShipment = new List<ShippingYard>();
+                for (int i = 0; i < totalVendors; i++)
+                {
+                    string ShippingYardId = dt.Tables[0].Rows[i]["ShippingYardId"].ToString();
+                    string filterexpr = "ShippingYardId = " + ShippingYardId + "";
+                    ShippingYard vendor = new ShippingYard();
+                    vendor.shipyardId = dt.Tables[0].Rows[i]["ShippingYardId"].ToString();
+                    vendor.shipyard = dt.Tables[0].Rows[i]["ShippingYard"].ToString();
+                    vendor.MissingChassis = null;
+                    if (ChasisNo != null)
+                    {
+                        i = totalVendors;
+                        filterexpr = "";
+                        vendor.shipyardId = "-1";
+                        vendor.shipyard = "Searched Results";
+                    }
+                    DataRow[] CurrentVendorRow = dt.Tables[1].Select(filterexpr);
+                    vendor.shipyardDetail = new List<ShippmentDetail>();
+                    for (int k = 0; k < CurrentVendorRow.Length; k++)
+                    {
+                        ShippmentDetail vndDetail = new ShippmentDetail();
+                        vndDetail.sno = k;
+                        vndDetail.Country = CurrentVendorRow[k]["Country"].ToString();
+                        vndDetail.ChasisID = CurrentVendorRow[k]["ChassisNumber"].ToString();
+                        vndDetail.Make = CurrentVendorRow[k]["Make"].ToString();
+                        vndDetail.Model = CurrentVendorRow[k]["Model"].ToString();
+                        vndDetail.Year = CurrentVendorRow[k]["ModelYear"].ToString();
+                        vndDetail.Port = CurrentVendorRow[k]["Port"].ToString();
+                        vndDetail.ShippingYard = CurrentVendorRow[k]["ShippingYard"].ToString();
+                        vndDetail.ShipmentType = CurrentVendorRow[k]["ShipmentType"].ToString();
+                        vndDetail.customerProductInvoiceNumber = CurrentVendorRow[k]["customerProductInvoiceNumber"].ToString();
+                        vndDetail.CustomerProductInvoiceId = CurrentVendorRow[k]["CustomerProductInvoiceId"].ToString();
+                        vndDetail.VendorName = CurrentVendorRow[k]["TransportVendor"].ToString();
+                        vndDetail.PurchaseDate = CurrentVendorRow[k]["PurchaseDate"].ToString();
+                        vendor.shipyardDetail.Add(vndDetail);
+                    }
+                    lstVendorShipment.Add(vendor);
+                }
+                return lstVendorShipment;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+        protected List<ShippingYard> GetPendingInspections(DateTime fromDate, DateTime toDate, int PageNum, int PageSize, string ChasisNo)
+        {
+            DataSet dt = new DataSet();
+            dt = JTJapan.Core.AdminArea.ShipmentReportMethods.GetPendingInspections(fromDate, toDate, PageNum, PageSize, AuthBase.ClientId, ChasisNo);
+            ViewData["MissingChassis"] = EnumerableExtension.ToList<MissingChassis>(dt.Tables[3]);
+            try
+            {
+                int totalVendors = dt.Tables[0].Rows.Count;
+                List<ShippingYard> lstVendorShipment = new List<ShippingYard>();
+                for (int i = 0; i < totalVendors; i++)
+                {
+                    string ShippingYardId = dt.Tables[0].Rows[i]["ShippingYardId"].ToString();
+                    string filterexpr = "ShippingYardId = " + ShippingYardId + "";
+                    ShippingYard vendor = new ShippingYard();
+                    vendor.shipyardId = dt.Tables[0].Rows[i]["ShippingYardId"].ToString();
+                    vendor.shipyard = dt.Tables[0].Rows[i]["ShippingYard"].ToString();
+                    if (ChasisNo != null)
+                    {
+                        i = totalVendors;
+                        filterexpr = "";
+                        vendor.shipyardId = "-1";
+                        vendor.shipyard = "Searched Results";
+                       
+                    }
+                    DataRow[] CurrentVendorRow = dt.Tables[1].Select(filterexpr);
+                    vendor.shipyardDetail = new List<ShippmentDetail>();
+                    for (int k = 0; k < CurrentVendorRow.Length; k++)
+                    {
+                        ShippmentDetail vndDetail = new ShippmentDetail();
+                        vndDetail.sno = k;
+                        vndDetail.Country = CurrentVendorRow[k]["Country"].ToString();
+                        vndDetail.ChasisID = CurrentVendorRow[k]["ChassisNumber"].ToString();
+                        vndDetail.Make = CurrentVendorRow[k]["Make"].ToString();
+                        vndDetail.Model = CurrentVendorRow[k]["Model"].ToString();
+                        vndDetail.Year = CurrentVendorRow[k]["ModelYear"].ToString();
+                        vndDetail.Port = CurrentVendorRow[k]["Port"].ToString();
+                        vndDetail.ShippingYard = CurrentVendorRow[k]["ShippingYard"].ToString();
+                        vndDetail.ShipmentType = CurrentVendorRow[k]["ShipmentType"].ToString();
+                        vndDetail.customerProductInvoiceNumber = CurrentVendorRow[k]["customerProductInvoiceNumber"].ToString();
+                        vndDetail.CustomerProductInvoiceId = CurrentVendorRow[k]["CustomerProductInvoiceId"].ToString();
+                        vndDetail.EmailStatus = CurrentVendorRow[k]["EmailStatus"].ToString();
+                        vndDetail.InspectionName = CurrentVendorRow[k]["InspectionName"].ToString();
+                        vndDetail.InspectionCost = CurrentVendorRow[k]["InspectionCost"].ToString();
+                        vendor.shipyardDetail.Add(vndDetail);
+                    }
+                    lstVendorShipment.Add(vendor);
+                }
+                return lstVendorShipment;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+        protected List<ShippingYard> GetPendingInspectionRequests(DateTime fromDate, DateTime toDate, int PageNum, int PageSize, string ChasisNo)
+        {
+            DataSet dt = new DataSet();
+            dt = JTJapan.Core.AdminArea.ShipmentReportMethods.GetPendingInspectionRequests(fromDate, toDate, PageNum, PageSize, AuthBase.ClientId, ChasisNo);
+            ViewData["MissingChassis"] = EnumerableExtension.ToList<MissingChassis>(dt.Tables[3]);
+            try
+            {
+                int totalVendors = dt.Tables[0].Rows.Count;
+                List<ShippingYard> lstVendorShipment = new List<ShippingYard>();
+                for (int i = 0; i < totalVendors; i++)
+                {
+                    string ShippingYardId = dt.Tables[0].Rows[i]["ShippingYardId"].ToString();
+                    string filterexpr = "ShippingYardId = " + ShippingYardId + "";
+                    ShippingYard vendor = new ShippingYard();
+                    vendor.shipyardId = dt.Tables[0].Rows[i]["ShippingYardId"].ToString();
+                    vendor.shipyard = dt.Tables[0].Rows[i]["ShippingYard"].ToString();
+                    if (ChasisNo != null)
+                    {
+                        i = totalVendors;
+                        filterexpr = "";
+                        vendor.shipyardId = "-1";
+                        vendor.shipyard = "Searched Results";
+                        vendor.MissingChassis = EnumerableExtension.ToList<MissingChassis>(dt.Tables[3]);
+                    }
+                    DataRow[] CurrentVendorRow = dt.Tables[1].Select(filterexpr);
+                    vendor.shipyardDetail = new List<ShippmentDetail>();
+                    for (int k = 0; k < CurrentVendorRow.Length; k++)
+                    {
+                        ShippmentDetail vndDetail = new ShippmentDetail();
+                        vndDetail.sno = k;
+                        vndDetail.Country = CurrentVendorRow[k]["Country"].ToString();
+                        vndDetail.ChasisID = CurrentVendorRow[k]["ChassisNumber"].ToString();
+                        vndDetail.Make = CurrentVendorRow[k]["Make"].ToString();
+                        vndDetail.Model = CurrentVendorRow[k]["Model"].ToString();
+                        vndDetail.Year = CurrentVendorRow[k]["ModelYear"].ToString();
+                        vndDetail.Port = CurrentVendorRow[k]["Port"].ToString();
+                        vndDetail.ShippingYard = CurrentVendorRow[k]["ShippingYard"].ToString();
+                        vndDetail.ShipmentType = CurrentVendorRow[k]["ShipmentType"].ToString();
+                        vndDetail.customerProductInvoiceNumber = CurrentVendorRow[k]["customerProductInvoiceNumber"].ToString();
+                        vndDetail.CustomerProductInvoiceId = CurrentVendorRow[k]["CustomerProductInvoiceId"].ToString();
+                        vndDetail.InspectionName = CurrentVendorRow[k]["InspectionName"].ToString();
+                        vndDetail.InspectionCost = CurrentVendorRow[k]["InspectionCost"].ToString();
+                        vndDetail.InspectionId = CurrentVendorRow[k]["InspectionId"].ToString();
+                        vendor.shipyardDetail.Add(vndDetail);
+                    }
+                    lstVendorShipment.Add(vendor);
+                }
+                return lstVendorShipment;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+        protected List<ShippingYard> GetPendingAlterations(DateTime fromDate, DateTime toDate, int PageNum, int PageSize, string ChasisNo)
+        {
+            ViewBag.Title = "Unit Alteration Pending";
+            DataSet dt = new DataSet();
+            dt = JTJapan.Core.AdminArea.ShipmentReportMethods.GetPendingAlterations(fromDate, toDate, PageNum, PageSize, AuthBase.ClientId, ChasisNo);
+            ViewData["MissingChassis"] = EnumerableExtension.ToList<MissingChassis>(dt.Tables[3]);
+            try
+            {
+                int totalVendors = dt.Tables[0].Rows.Count;
+                List<ShippingYard> lstVendorShipment = new List<ShippingYard>();
+                for (int i = 0; i < totalVendors; i++)
+                {
+                    string ShippingYardId = dt.Tables[0].Rows[i]["ShippingYardId"].ToString();
+                    string filterexpr = "ShippingYardId = " + ShippingYardId + "";
+                    ShippingYard shippingYard = new ShippingYard();
+                    shippingYard.shipyardId = dt.Tables[0].Rows[i]["ShippingYardId"].ToString();
+                    shippingYard.shipyard = dt.Tables[0].Rows[i]["ShippingYard"].ToString();
+                    if (ChasisNo != null)
+                    {
+                        i = totalVendors;
+                        filterexpr = "";
+                        shippingYard.shipyardId = "-1";
+                        shippingYard.shipyard = "Searched Results";
+                        shippingYard.MissingChassis = EnumerableExtension.ToList<MissingChassis>(dt.Tables[3]);
+                    }
+                    DataRow[] CurrentVendorRow = dt.Tables[1].Select(filterexpr);
+                    shippingYard.alterationDetail = new List<AlterationDetail>();
+                    for (int k = 0; k < CurrentVendorRow.Length; k++)
+                    {
+                        AlterationDetail alterationDetail = new AlterationDetail();
+                        alterationDetail.sno = k;
+                        alterationDetail.Country = CurrentVendorRow[k]["Country"].ToString();
+                        alterationDetail.ChasisID = CurrentVendorRow[k]["ChassisNumber"].ToString();
+                        alterationDetail.Make = CurrentVendorRow[k]["Make"].ToString();
+                        alterationDetail.Model = CurrentVendorRow[k]["Model"].ToString();
+                        alterationDetail.Year = CurrentVendorRow[k]["ModelYear"].ToString();
+                        alterationDetail.Port = CurrentVendorRow[k]["Port"].ToString();
+                        alterationDetail.ShippingYard = CurrentVendorRow[k]["ShippingYard"].ToString();
+                        alterationDetail.ShipmentType = CurrentVendorRow[k]["ShipmentType"].ToString();
+                        alterationDetail.customerProductInvoiceNumber = CurrentVendorRow[k]["customerProductInvoiceNumber"].ToString();
+                        alterationDetail.CustomerProductInvoiceId = CurrentVendorRow[k]["CustomerProductInvoiceId"].ToString();
+                        alterationDetail.Alteration = CurrentVendorRow[k]["Alteration"].ToString();
+                        alterationDetail.RequestedMeterReading = CurrentVendorRow[k]["RequestedMeterReading"].ToString();
+                        alterationDetail.RequestComment = CurrentVendorRow[k]["RequestComment"].ToString();
+                        alterationDetail.DateModified = CurrentVendorRow[k]["DateModified"].ToString();
+                        shippingYard.alterationDetail.Add(alterationDetail);
+                    }
+                    lstVendorShipment.Add(shippingYard);
+                }
+                return lstVendorShipment;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+        protected List<ShippingYard> GetPendingAlterationRequest(DateTime fromDate, DateTime toDate, int PageNum, int PageSize, string ChasisNo)
+        {
+            ViewBag.Title = "Unit Alteration Request Pending";
+            ViewBag.chasis = ChasisNo;
+            DataSet dt = new DataSet();
+            dt = JTJapan.Core.AdminArea.ShipmentReportMethods.GetPendingAlterationRequests(fromDate, toDate, PageNum, PageSize, AuthBase.ClientId, ChasisNo);
+            ViewData["MissingChassis"] = EnumerableExtension.ToList<MissingChassis>(dt.Tables[3]);
+            try
+            {
+                int totalVendors = dt.Tables[0].Rows.Count;
+                List<ShippingYard> lstVendorShipment = new List<ShippingYard>();
+                for (int i = 0; i < totalVendors; i++)
+                {
+                    string ShippingYardId = dt.Tables[0].Rows[i]["ShippingYardId"].ToString();
+                    string filterexpr = "ShippingYardId = " + ShippingYardId + "";
+                    ShippingYard vendor = new ShippingYard();
+                    vendor.shipyardId = dt.Tables[0].Rows[i]["ShippingYardId"].ToString();
+                    vendor.shipyard = dt.Tables[0].Rows[i]["ShippingYard"].ToString();
+                    if (ChasisNo != null)
+                    {
+                        i = totalVendors;
+                        filterexpr = "";
+                        vendor.shipyardId = "-1";
+                        vendor.shipyard = "Searched Results";
+                        vendor.MissingChassis = EnumerableExtension.ToList<MissingChassis>(dt.Tables[3]);
+
+                    }
+                    DataRow[] CurrentVendorRow = dt.Tables[1].Select(filterexpr);
+                    vendor.shipyardDetail = new List<ShippmentDetail>();
+                    for (int k = 0; k < CurrentVendorRow.Length; k++)
+                    {
+                        ShippmentDetail vndDetail = new ShippmentDetail();
+                        vndDetail.sno = k;
+                        vndDetail.Country = CurrentVendorRow[k]["Country"].ToString();
+                        vndDetail.ChasisID = CurrentVendorRow[k]["ChassisNumber"].ToString();
+                        vndDetail.Make = CurrentVendorRow[k]["Make"].ToString();
+                        vndDetail.Model = CurrentVendorRow[k]["Model"].ToString();
+                        vndDetail.Year = CurrentVendorRow[k]["ModelYear"].ToString();
+                        vndDetail.Port = CurrentVendorRow[k]["Port"].ToString();
+                        vndDetail.ShippingYard = CurrentVendorRow[k]["ShippingYard"].ToString();
+                        vndDetail.ShipmentType = CurrentVendorRow[k]["ShipmentType"].ToString();
+                        vndDetail.customerProductInvoiceNumber = CurrentVendorRow[k]["customerProductInvoiceNumber"].ToString();
+                        vndDetail.CustomerProductInvoiceId = CurrentVendorRow[k]["CustomerProductInvoiceId"].ToString();
+                        vndDetail.Alteration = CurrentVendorRow[k]["Alteration"].ToString();
+                        vndDetail.RequestedMeterReading = CurrentVendorRow[k]["RequestedMeterReading"].ToString();
+                        vndDetail.AlterationVendor = CurrentVendorRow[k]["AlterationVendor"].ToString();
+                        vndDetail.RequestComment = CurrentVendorRow[k]["RequestComment"].ToString();
+                        vndDetail.DateModified = CurrentVendorRow[k]["DateModified"].ToString();
+                        vendor.shipyardDetail.Add(vndDetail);
+                    }
+                    lstVendorShipment.Add(vendor);
+                }
+                return lstVendorShipment;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+        protected List<ShippingYard> GetInspectionsForCertificate(DateTime fromDate, DateTime toDate, int PageNum, int PageSize, string ChasisNo)
+        {
+            DataSet dt = new DataSet();
+            dt = JTJapan.Core.AdminArea.ShipmentReportMethods.GetInspectionsForCertificate(fromDate, toDate, PageNum, PageSize, AuthBase.ClientId, ChasisNo);
+            ViewData["MissingChassis"] = EnumerableExtension.ToList<MissingChassis>(dt.Tables[3]);
+            try
+            {
+                int totalVendors = dt.Tables[0].Rows.Count;
+                List<ShippingYard> lstVendorShipment = new List<ShippingYard>();
+                for (int i = 0; i < totalVendors; i++)
+                {
+                    string ShippingYardId = dt.Tables[0].Rows[i]["ShippingYardId"].ToString();
+                    string filterexpr = "ShippingYardId = " + ShippingYardId + "";
+                    ShippingYard vendor = new ShippingYard();
+                    vendor.shipyardId = dt.Tables[0].Rows[i]["ShippingYardId"].ToString();
+                    vendor.shipyard = dt.Tables[0].Rows[i]["ShippingYard"].ToString();
+                    if (ChasisNo != null)
+                    {
+                        i = totalVendors;
+                        filterexpr = "";
+                        vendor.shipyardId = "-1";
+                        vendor.shipyard = "Searched Results";
+
+                        vendor.MissingChassis = EnumerableExtension.ToList<MissingChassis>(dt.Tables[3]);
+
+                    }
+                    DataRow[] CurrentVendorRow = dt.Tables[1].Select(filterexpr);
+                    vendor.shipyardDetail = new List<ShippmentDetail>();
+                    for (int k = 0; k < CurrentVendorRow.Length; k++)
+                    {
+                        ShippmentDetail vndDetail = new ShippmentDetail();
+                        vndDetail.sno = k;
+                        vndDetail.Country = CurrentVendorRow[k]["Country"].ToString();
+                        vndDetail.ChasisID = CurrentVendorRow[k]["ChassisNumber"].ToString();
+                        vndDetail.Make = CurrentVendorRow[k]["Make"].ToString();
+                        vndDetail.Model = CurrentVendorRow[k]["Model"].ToString();
+                        vndDetail.Year = CurrentVendorRow[k]["ModelYear"].ToString();
+                        vndDetail.Port = CurrentVendorRow[k]["Port"].ToString();
+                        vndDetail.ShippingYard = CurrentVendorRow[k]["ShippingYard"].ToString();
+                        vndDetail.ShipmentType = CurrentVendorRow[k]["ShipmentType"].ToString();
+                        vndDetail.customerProductInvoiceNumber = CurrentVendorRow[k]["customerProductInvoiceNumber"].ToString();
+                        vndDetail.CustomerProductInvoiceId = CurrentVendorRow[k]["CustomerProductInvoiceId"].ToString();
+                        vndDetail.InspectionName = CurrentVendorRow[k]["InspectionName"].ToString();
+                        vndDetail.InspectionCost = CurrentVendorRow[k]["InspectionCost"].ToString();
+                        vndDetail.InpspectionDate = CurrentVendorRow[k]["InpspectionDate"].ToString();
+                        vendor.shipyardDetail.Add(vndDetail);
+                    }
+                    lstVendorShipment.Add(vendor);
+                }
+                return lstVendorShipment;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+        #endregion
+        
+        #region UnitPicturesPending
+
+        public ActionResult UnitPicturesPending()
+        {
+            return View();
+        }
+        public ActionResult _UnitPicturesPendingDetail(int PageCount, int PageSize, int? VendorId, string ChasisNo)
+        {
+            UnitPicturesPendingModel objUnitPicturesPendingModel = new UnitPicturesPendingModel();
+
+            DataSet dataSet = ShipmentReportMethods.GetUnitPicturesPending(PageCount, PageSize, VendorId, ChasisNo);
+
+            if ((dataSet != null && dataSet.Tables[0] != null && dataSet.Tables[0].Rows.Count > 0 && dataSet.Tables[1] != null) || (dataSet.Tables.Count > 3 && dataSet.Tables[3].Rows.Count > 0))
+            {
+                objUnitPicturesPendingModel.UnitPicturesPendingCountVendorWise = EnumerableExtension.ToList<UnitPicturesPendingCountVendorWise>(dataSet.Tables[0]);
+                objUnitPicturesPendingModel.UnitPicturesPendingList = EnumerableExtension.ToList<UnitPicturesPending>(dataSet.Tables[1]);
+                objUnitPicturesPendingModel.TotalResults = Convert.ToInt32(dataSet.Tables[2].Rows[0]["TotalResult"]);
+                objUnitPicturesPendingModel.CurrentPage = PageCount;
+                objUnitPicturesPendingModel.PageSize = PageSize;
+                objUnitPicturesPendingModel.VendorId = VendorId;
+                if (dataSet.Tables.Count > 3 && dataSet.Tables[3].Rows.Count > 0)
+                {
+                    objUnitPicturesPendingModel.MissingChassisNoList = EnumerableExtension.ToList<MissingChassisNo>(dataSet.Tables[3]);
+                }
+            }
+            else
+            {
+                return Content("");
+            }
+
+            return PartialView(objUnitPicturesPendingModel);
+        }
+        [HttpPost]
+        public JsonResult UploadUnitPictures(string requestModel)
+        {
+            var documentModel = JsonConvert.DeserializeObject<UploadDocumentRequestModel>(requestModel);
+            for (int j = 0; j < documentModel.ListOfDocument.Count; j++)
+            {
+                if (documentModel.ListOfDocument[j].StatusId == 2)
+                {
+                    DocumentMethod.DeleteProductDocuments(documentModel.ListOfDocument[j].CustomerProductInvoiceId, (int)Constants.DocumentType.UnitPictures);
+                }
+            }
+            var responseMOdel = Utilities.UploadFile(documentModel, (int)Constants.DocumentType.UnitPictures, Request.Files);
+
+            for (int i = 0; i < documentModel.ListOfDocument.Count; i++)
+            {
+                if (documentModel.ListOfDocument[i].IsAvailable == true)
+                {
+                    DocumentMethod.UpdateProductDocumentStatus(documentModel.ListOfDocument[i].CustomerProductInvoiceId, (int)Constants.DocumentType.UnitPictures
+                                                            , (int)Constants.OG_ProductDocumentStatus.UnitPictures_Uploaded);
+                }
+            }
+            return Json(responseMOdel, JsonRequestBehavior.AllowGet);
+        }
+        [HttpGet]
+        public ActionResult _UnitPicturesStatus()
+        {
+            return PartialView();
+        }
+        [HttpPost]
+        public ActionResult _UnitPicturesStatusDetail()
+        {
+            UnitPicturesStatuseModel responseModel = new UnitPicturesStatuseModel();
+            string chassisNumbers = Utilities.GetZipDirectoryNames(Request.Files);
+
+            if (!string.IsNullOrEmpty(chassisNumbers))
+            {
+                DataTable dataTable = ShipmentReportMethods.SelectUnitPicturesStatus(chassisNumbers);
+                if (dataTable != null && dataTable.Rows.Count > 0)
+                {
+                    responseModel.UnitPicturesStatusList = EnumerableExtension.ToList<UnitPicturesStatus>(dataTable);
+                }
+
+                foreach (var item in responseModel.UnitPicturesStatusList)
+                {
+                    if (item.StatusId == 1)
+                    {
+                        item.Comments = "Document can be uploaded";
+                    }
+
+                    else if (item.StatusId == 2)
+                    {
+                        item.Comments = "Document already uploaded";
+                    }
+
+                    else
+                    {
+                        item.Comments = "Chassis number not found";
+                    }
+                }
+                responseModel.IsValid = true;
+            }
+
+            else
+            {
+                responseModel.Message = "No folders found";
+            }
+
+            return PartialView("_UnitPicturesStatusDetail", responseModel);
+        }
+        #endregion
+
+        #region AuctionHousePicturesPending
+        public ActionResult AuctionHousePicturesPending()
+        {
+            return View();
+        }
+        public ActionResult _AuctionHousePicturesPending(int PageCount, int PageSize, int? AuctionHouseId, string ChasisNo)
+        {
+            AuctionHousePicturesPendingModel objAuctionHousePicturesPendingModel = new AuctionHousePicturesPendingModel();
+            DataSet dataSet = ShipmentReportMethods.GetAuctionHousePicturesPending(PageCount, PageSize, AuctionHouseId, ChasisNo);
+
+            if ((dataSet != null && dataSet.Tables[0] != null && dataSet.Tables[0].Rows.Count > 0 && dataSet.Tables[1] != null) || (dataSet.Tables.Count > 3 && dataSet.Tables[3].Rows.Count > 0))
+            {
+                objAuctionHousePicturesPendingModel.AuctionHousePicturesPendingCount = EnumerableExtension.ToList<AuctionHousePicturesPendingCount>(dataSet.Tables[0]);
+                objAuctionHousePicturesPendingModel.AuctionHousePicturesPendingList = EnumerableExtension.ToList<AuctionHousePicturesPending>(dataSet.Tables[1]);
+                objAuctionHousePicturesPendingModel.TotalResults = Convert.ToInt32(dataSet.Tables[2].Rows[0]["TotalResult"]);
+                objAuctionHousePicturesPendingModel.CurrentPage = PageCount;
+                objAuctionHousePicturesPendingModel.PageSize = PageSize;
+                objAuctionHousePicturesPendingModel.AuctionHouseId = AuctionHouseId;
+                if (dataSet.Tables.Count > 3 && dataSet.Tables[3].Rows.Count > 0)
+                {
+                    objAuctionHousePicturesPendingModel.MissingChassisNoList = EnumerableExtension.ToList<MissingChassisNo>(dataSet.Tables[3]);
+                }
+            }
+            else
+            {
+                return Content("");
+            }
+
+            return PartialView(objAuctionHousePicturesPendingModel);
+        }
+        [HttpGet]
+        public ActionResult _AuctionHousePicturesStatus()
+        {
+            return PartialView();
+        }
+        public ActionResult _AuctionHousePicturesStatusDetail()
+        {
+            AuctionHouseStatuseModel responseModel = new AuctionHouseStatuseModel();
+            string chassisNumbers = Utilities.GetZipDirectoryNames(Request.Files);
+
+            if (!string.IsNullOrEmpty(chassisNumbers))
+            {
+                DataTable dataTable = ShipmentReportMethods.GetAuctionHousePicturesStatus(chassisNumbers);
+                if (dataTable != null && dataTable.Rows.Count > 0)
+                {
+                    responseModel.AuctionHousePicturesStatusList = EnumerableExtension.ToList<AuctionHousePicturesStatus>(dataTable);
+                }
+
+                foreach (var item in responseModel.AuctionHousePicturesStatusList)
+                {
+                    if (item.StatusId == 1)
+                    {
+                        item.Comments = "Document can be uploaded";
+                    }
+
+                    else if (item.StatusId == 2)
+                    {
+                        item.Comments = "Document already uploaded";
+                    }
+
+                    else
+                    {
+                        item.Comments = "Chassis number not found";
+                    }
+                }
+                responseModel.IsValid = true;
+            }
+
+            else
+            {
+                responseModel.Message = "No folders found";
+            }
+
+            return PartialView("_AuctionHousePicturesStatusDetail", responseModel);
+        }
+        [HttpPost]
+        public JsonResult UploadAuctionHousePictures(string requestModel)
+        {
+            var documentModel = JsonConvert.DeserializeObject<UploadDocumentRequestModel>(requestModel);
+            for (int j = 0; j < documentModel.ListOfDocument.Count; j++)
+            {
+                if (documentModel.ListOfDocument[j].StatusId == 2)
+                {
+                    DocumentMethod.DeleteProductDocumentByPurchaseId(documentModel.ListOfDocument[j].PurchaseId, (int)Constants.DocumentType.AuctionHousePictures);
+                }
+            }
+            var responseMOdel = Utilities.UploadFile(documentModel, (int)Constants.DocumentType.AuctionHousePictures, Request.Files);
+
+            for (int i = 0; i < documentModel.ListOfDocument.Count; i++)
+            {
+                if (documentModel.ListOfDocument[i].IsAvailable == true)
+                {
+                    DocumentMethod.UpdateProductDocumentStatusByPurchaseId(documentModel.ListOfDocument[i].PurchaseId, (int)Constants.DocumentType.AuctionHousePictures
+                                                            , (int)Constants.OG_ProductDocumentStatus.AuctionHousePicturesUploaded);
+                }
+            }
+            return Json(responseMOdel, JsonRequestBehavior.AllowGet);
+        }
+        #endregion
+
+
+        #region DocumentUpload
+
+        [HttpGet]
+        public ActionResult ShipmentOrderDocumentReceive()
+        {
+
+            return View();
+        
+        }
+
+
+        
+        
+        #endregion
+
+
+        #region Export Declaration and Shipment Order Pending 
+        public ActionResult ExportDeclarationPending()
+        {
+
+            return View();
+        
+        }
+
+
+        public ActionResult _DeclarationOrderPending(int PageCount, int PageSize, int? ShippingVendorId, string ChasisNo, int DocumentStatusId = (int)Constants.OG_ProductDocumentStatus.ExportDeclarationPending)
+        {
+            OrderPendingModel objDeclarationOrderPending = new OrderPendingModel();
+
+            //ChasisNo = string.IsNullOrEmpty(ChasisNo) ? ChasisNo : ChasisNo.Trim().Replace(' ', ',');
+
+            DataSet dataSet = ShipmentReportMethods.GetExportDeclarationPending(PageCount, PageSize, ShippingVendorId, ChasisNo, DocumentStatusId);
+
+            if ((dataSet != null && dataSet.Tables[0] != null && dataSet.Tables[0].Rows.Count > 0 && dataSet.Tables[1] != null) || (dataSet.Tables.Count > 3 && dataSet.Tables[3].Rows.Count > 0))
+            {
+                objDeclarationOrderPending.BLPendingCountVendorWise = EnumerableExtension.ToList<OrderPendingCountVendorWise>(dataSet.Tables[0]);
+                objDeclarationOrderPending.BLPendingList = EnumerableExtension.ToList<OrderPending>(dataSet.Tables[1]);
+                objDeclarationOrderPending.TotalResults = Convert.ToInt32(dataSet.Tables[2].Rows[0]["TotalResult"]);
+                objDeclarationOrderPending.CurrentPage = PageCount;
+                objDeclarationOrderPending.PageSize = PageSize;
+                objDeclarationOrderPending.ShippingVendorId = ShippingVendorId;
+                objDeclarationOrderPending.DocumentStatusId = DocumentStatusId;
+                if (dataSet.Tables.Count > 3 && dataSet.Tables[3].Rows.Count > 0)
+                {
+                    objDeclarationOrderPending.MissingChassisNoList = EnumerableExtension.ToList<MissingChassisNo>(dataSet.Tables[3]);
+                }
+            }
+            else
+            {
+                return Content("");
+            }
+
+            return PartialView(objDeclarationOrderPending);
+        }
+
+
+        [HttpGet]
+        public ActionResult _DeclarationStatus()
+        {
+            return PartialView();
+        }
+
+        [HttpPost]
+        public ActionResult _DeclarationStatusDetail()
+        {
+            ExportDeclarationModel responseModel = new ExportDeclarationModel();
+            string chassisNumbers = Utilities.GetZipDirectoryNames(Request.Files);
+
+            if (!string.IsNullOrEmpty(chassisNumbers))
+            {
+                DataTable dataTable = ShipmentReportMethods.SelectExportDeclarationStatus(chassisNumbers);
+                if (dataTable != null && dataTable.Rows.Count > 0)
+                {
+                    responseModel.ExportDeclarationList = EnumerableExtension.ToList<ExportDeclaration>(dataTable);
+                }
+
+                foreach (var item in responseModel.ExportDeclarationList)
+                {
+                    if (item.StatusId == 1)
+                    {
+                        item.Comments = "Document can be uploaded";
+                    }
+
+                    else if (item.StatusId == 2)
+                    {
+                        item.Comments = "Document already uploaded";
+                    }
+
+                    else
+                    {
+                        item.Comments = "Chassis number not found";
+                    }
+                }
+                responseModel.IsValid = true;
+            }
+
+            else
+            {
+                responseModel.Message = "No folders found";
+            }
+
+            return PartialView("_DeclarationStatusDetail", responseModel);
+        }
+
+        [HttpPost]
+        public JsonResult UploadExportDeclaration(string requestModel)
+        {
+            var documentModel = JsonConvert.DeserializeObject<UploadDocumentRequestModel>(requestModel);
+            for (int j = 0; j < documentModel.ListOfDocument.Count; j++)
+            {
+                if (documentModel.ListOfDocument[j].StatusId == 2)
+                {
+                    DocumentMethod.DeleteProductDocuments(documentModel.ListOfDocument[j].CustomerProductInvoiceId, (int)Constants.DocumentType.ExportLetter);
+                }
+            }
+            var responseMOdel = Utilities.UploadFile(documentModel, (int)Constants.DocumentType.ExportLetter, Request.Files);
+
+            for (int i = 0; i < documentModel.ListOfDocument.Count; i++)
+            {
+                if (documentModel.ListOfDocument[i].IsAvailable == true)
+                {
+                    DocumentMethod.UpdateProductDocumentStatus(documentModel.ListOfDocument[i].CustomerProductInvoiceId, (int)Constants.DocumentType.ExportLetter
+                                                            , Constants.OG_ProductDocumentStatus.ExportDeclarationUploaded.GetHashCode());
+                }
+            }
+            return Json(responseMOdel, JsonRequestBehavior.AllowGet);
+        }
+
+        #endregion
+
+
+        #region Shipping Order Uploaded
+
+        public ActionResult ShippingOrderPending()
+        {
+            return View();
+        }
+        public ActionResult _ShippingOrderPending(int PageCount, int PageSize, int? ShippingVendorId, string ChasisNo, int DocumentStatusId = (int)Constants.OG_ProductDocumentStatus.ShippingOrderPending)
+        {
+            OrderPendingModel objShipmentOrderPending = new OrderPendingModel();
+
+            //ChasisNo = string.IsNullOrEmpty(ChasisNo) ? ChasisNo : ChasisNo.Trim().Replace(' ', ',');
+
+            DataSet dataSet = ShipmentReportMethods.GetShippingOrderPending(PageCount, PageSize, ShippingVendorId, ChasisNo, DocumentStatusId);
+
+            if ((dataSet != null && dataSet.Tables[0] != null && dataSet.Tables[0].Rows.Count > 0 && dataSet.Tables[1] != null) || (dataSet.Tables.Count > 3 && dataSet.Tables[3].Rows.Count > 0))
+            {
+                objShipmentOrderPending.BLPendingCountVendorWise = EnumerableExtension.ToList<OrderPendingCountVendorWise>(dataSet.Tables[0]);
+                objShipmentOrderPending.BLPendingList = EnumerableExtension.ToList<OrderPending>(dataSet.Tables[1]);
+                objShipmentOrderPending.TotalResults = Convert.ToInt32(dataSet.Tables[2].Rows[0]["TotalResult"]);
+                objShipmentOrderPending.CurrentPage = PageCount;
+                objShipmentOrderPending.PageSize = PageSize;
+                objShipmentOrderPending.ShippingVendorId = ShippingVendorId;
+                objShipmentOrderPending.DocumentStatusId = DocumentStatusId;
+                if (dataSet.Tables.Count > 3 && dataSet.Tables[3].Rows.Count > 0)
+                {
+                    objShipmentOrderPending.MissingChassisNoList = EnumerableExtension.ToList<MissingChassisNo>(dataSet.Tables[3]);
+                }
+            }
+            else
+            {
+                return Content("");
+            }
+
+            return PartialView(objShipmentOrderPending);
+        }
+        [HttpGet]
+        public ActionResult _ShippingOrderStatus()
+        {
+            return PartialView();
+        }
+
+        [HttpPost]
+        public ActionResult _ShippingOrderStatusDetail()
+        {
+            ExportDeclarationModel responseModel = new ExportDeclarationModel();
+            string chassisNumbers = Utilities.GetZipDirectoryNames(Request.Files);
+
+            if (!string.IsNullOrEmpty(chassisNumbers))
+            {
+                DataTable dataTable = ShipmentReportMethods.SelectShippingOrderStatus(chassisNumbers);
+                if (dataTable != null && dataTable.Rows.Count > 0)
+                {
+                    responseModel.ExportDeclarationList = EnumerableExtension.ToList<ExportDeclaration>(dataTable);
+                }
+
+                foreach (var item in responseModel.ExportDeclarationList)
+                {
+                    if (item.StatusId == 1)
+                    {
+                        item.Comments = "Document can be uploaded";
+                    }
+
+                    else if (item.StatusId == 2)
+                    {
+                        item.Comments = "Document already uploaded";
+                    }
+
+                    else
+                    {
+                        item.Comments = "Chassis number not found";
+                    }
+                }
+                responseModel.IsValid = true;
+            }
+
+            else
+            {
+                responseModel.Message = "No folders found";
+            }
+
+            return PartialView("_DeclarationStatusDetail", responseModel);
+        }
+
+        [HttpPost]
+        public JsonResult UploadShippingOrder(string requestModel)
+        {
+            var documentModel = JsonConvert.DeserializeObject<UploadDocumentRequestModel>(requestModel);
+            for (int j = 0; j < documentModel.ListOfDocument.Count; j++)
+            {
+                if (documentModel.ListOfDocument[j].StatusId == 2)
+                {
+                    DocumentMethod.DeleteProductDocuments(documentModel.ListOfDocument[j].CustomerProductInvoiceId, (int)Constants.DocumentType.ShipmentInvoice);
+                }
+            }
+            var responseMOdel = Utilities.UploadFile(documentModel, (int)Constants.DocumentType.ShipmentInvoice, Request.Files);
+
+            for (int i = 0; i < documentModel.ListOfDocument.Count; i++)
+            {
+                if (documentModel.ListOfDocument[i].IsAvailable == true)
+                {
+                    DocumentMethod.UpdateProductDocumentStatus(documentModel.ListOfDocument[i].CustomerProductInvoiceId, (int)Constants.DocumentType.ShipmentInvoice
+                                                            , Constants.OG_ProductDocumentStatus.ShippingOrderUploaded.GetHashCode());
+                }
+            }
+            return Json(responseMOdel, JsonRequestBehavior.AllowGet);
+        }
+
+
+        #endregion
+
+
+
+    }
+}
+
+
+-----------------------
+
+Automobile.Admin.Controllers.cs
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Web;
+using System.Web.Mvc;
+using Automobile.Admin.Models;
+using System.Data;
+using System.Data.SqlClient;
+using JTJapan.Core;
+using JTJapan.Core.Helper;
+
+
+namespace Automobile.Admin.Controllers
+{
+    public class AccountController : Controller
+    {
+
+        [HttpGet]
+        public ActionResult Login(string returnUrl)
+        {
+            if (Request.Cookies["cuid"] != null)
+                return RedirectToAction("Index", "Home");
+
+            if (string.IsNullOrEmpty(returnUrl) && Request.UrlReferrer != null)
+                returnUrl = Server.UrlEncode(Request.UrlReferrer.PathAndQuery);
+
+            if (Url.IsLocalUrl(returnUrl) && !string.IsNullOrEmpty(returnUrl))
+                ViewBag.ReturnURL = returnUrl;
+
+            return View();
+        }
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public ActionResult Login(LoginViewModel model, string returnUrl)
+        {
+            returnUrl = returnUrl == "/" ? "" : returnUrl;
+            ViewBag.ReturnUrl = returnUrl;
+
+            if (ModelState.IsValid)
+            {
+                List<LoginViewModel> LoginList = GetLoginCredentials(model.UserName, model.Password);
+                if (LoginList != null && LoginList.Count > 0)
+                {
+
+                    HttpCookie UserIdCookie = new HttpCookie("cuid");
+                    UserIdCookie.Value = LoginList[0].UserId.ToString();
+
+                    HttpCookie ClientIdCookie = new HttpCookie("ccid");
+                    ClientIdCookie.Value = "-1";//LoginList[0].ClientId.ToString();
+
+                    HttpCookie UserNameCookie = new HttpCookie("cun");
+                    UserNameCookie.Value = LoginList[0].UserName.ToString();
+
+                    UserIdCookie.Expires = DateTime.Now.AddHours(12);
+                    Response.Cookies.Add(UserIdCookie);
+
+                    ClientIdCookie.Expires = DateTime.Now.AddHours(12);
+                    Response.Cookies.Add(ClientIdCookie);
+
+                    UserNameCookie.Expires = DateTime.Now.AddHours(12);
+                    Response.Cookies.Add(UserNameCookie);
+
+                    return RedirectToAction("Index", "Home");
+                }
+
+                else
+                {
+                    ModelState.AddModelError("", "Invalid username or password.");
+                    return View();
+                }
+            }
+            return View(model);
+        }
+
+        public static List<LoginViewModel> GetLoginCredentials(string UserName, string Password)
+        {
+            DataTable dt = new DataTable();
+            List<LoginViewModel> lst = new List<LoginViewModel>();
+            SqlParameter[] parameters =
+            {    
+                new SqlParameter("@UserName", SqlDbType.VarChar) { Value = UserName },
+                 new SqlParameter("@Password", SqlDbType.VarChar) { Value = Password }
+            };
+            dt = DataAccess.getDataTable("dbo.Login_Credentials", parameters, General.GetConstring());
+            if (dt.Rows.Count > 0)
+            {
+                lst = EnumerableExtension.ToList<LoginViewModel>(dt);
+            }
+
+            return lst;
+        }
+        [HttpGet]
+        public ActionResult LogOut()
+        {
+            string[] myCookies = Request.Cookies.AllKeys;
+            foreach (string cookie in myCookies)
+            {
+                Response.Cookies[cookie].Expires = DateTime.Now.AddSeconds(-1);
+            }
+            return RedirectToAction("Login", "Account");
+        }
+    }
+}
+-----------------------------------------
+DocumentationController.cs
+
+
+
+using JTJapan.Core.AdminArea.ViewModel;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+using JTJapan.Core;
+using System.Data;
+using Newtonsoft.Json;
+using JTJapan.Core.Helper;
+using System.IO;
+using JTJapan.Core.AdminArea;
+
+using Automobile.Admin.Models;
+
+namespace Automobile.Admin.Controllers
+{
+    public class DocumentationController : BaseController
+    {
+
+        #region MainPage
+        public ActionResult Index()
+        {
+            return View();
+        }
+
+        public ActionResult _DocumentStats()
+        {
+            DocumentCountViewModel countVM = ReportMethods.GetDocumentPendingCount();
+            return PartialView(countVM);
+        }
+        #endregion
+
+        #region DocumentReport
+        [ValidateInput(false)]
+        public ActionResult _PendingCarDocument(int pageSize, int pageNumber, string chassisNumbers, int documentStatusId)
+        {
+            List<SelectListItem> fileNumbersList = new List<SelectListItem>();
+            fileNumbersList.Insert(0, new SelectListItem() { Value = "0", Text = "Select" });  
+
+            DocumentReceivingViewModelResponseModel responseModel = new DocumentReceivingViewModelResponseModel();
+            responseModel.MultipleChassisNumbers = chassisNumbers;
+            chassisNumbers = string.IsNullOrEmpty(chassisNumbers) ? chassisNumbers : chassisNumbers.Trim().Replace(' ', ',');
+
+            for (int i = 1; i <= 100; i++)
+            {
+                fileNumbersList.Insert(i, new SelectListItem() { Value = i.ToString(), Text = i.ToString() });
+            }
+
+            ViewBag.ShelfList = ReportMethods.OG_ShelfList();
+            ViewBag.ExporterList = OGMethods.SelectExporterCompany();
+            ViewBag.FileNumberList = fileNumbersList; 
+
+            DataSet dataSet = ReportMethods.GetPendingCarDocument(pageSize, pageNumber, chassisNumbers, documentStatusId);
+
+            if (dataSet != null)
+            {
+                if (dataSet.Tables[0] != null && dataSet.Tables[0].Rows.Count > 0 && dataSet.Tables[1] != null)
+                {
+                    responseModel.DocumentList = EnumerableExtension.ToList<DocumentReceivingViewModelNew>(dataSet.Tables[0]);
+
+                    if (!string.IsNullOrEmpty(chassisNumbers))
+                    {
+                        List<string> chassisNumbersList = new List<string>();
+                        chassisNumbersList = chassisNumbers.Split(',').ToList();
+
+                        for (int item = 0; item < chassisNumbersList.Count; item++)
+                        {
+                            if (!responseModel.DocumentList.Where(x => chassisNumbersList[item].Contains(x.ChassisNumber)).Any())
+                            {
+                                responseModel.MissingChassisList.Add(new MissingChassisNumber
+                                {
+                                    ChassisNumber = chassisNumbersList[item]
+                                });
+                            }
+                        }
+                    }
+
+                    responseModel.TotalResults = Convert.ToInt32(dataSet.Tables[1].Rows[0]["TotalResults"]);
+                    responseModel.CurrentPage = pageNumber;
+                }
+            }
+
+            responseModel.PageSize = pageSize;
+            responseModel.DocumentStatusId = documentStatusId;
+            ViewBag.Message = responseModel.DocumentList.Count == 0 ? "No records found." : "";
+            return PartialView(responseModel);
+        }
+
+        public JsonResult GetAvailableFileNumber(int shelfId , int purchaseId)
+        {
+            DataTable dataTable = ReportMethods.GetAvailableFileNumberAgainstShelf(shelfId, purchaseId);
+            List<SelectListItem> fileNumberList = dataTable.AsEnumerable().Select(x =>  new SelectListItem {
+
+                Text = x.Field<int>("FileNumbers").ToString() ,
+                Value = x.Field<int>("FileNumbers").ToString()
+            
+            }).ToList();
+            return Json(fileNumberList, JsonRequestBehavior.AllowGet);
+        }
+
+        [ValidateInput(false)]
+        public ActionResult _PendingExportCertificate(int pageSize, int pageNumber, string chassisNumbers, int documentStatusId)
+        {
+            DocumentReceivingViewModelResponseModel responseModel = new DocumentReceivingViewModelResponseModel();
+            responseModel.MultipleChassisNumbers = chassisNumbers;
+            chassisNumbers = string.IsNullOrEmpty(chassisNumbers) ? chassisNumbers : chassisNumbers.Trim().Replace(' ', ',');
+
+
+            ViewBag.ShelfList = ReportMethods.OG_ShelfList();
+            ViewBag.ExporterList = OGMethods.SelectExporterCompany();
+
+            DataSet dataSet = ReportMethods.GetPendingExportCertificate(pageSize, pageNumber, chassisNumbers, documentStatusId);
+
+            if (dataSet != null)
+            {
+                if (dataSet.Tables[0] != null && dataSet.Tables[0].Rows.Count > 0 && dataSet.Tables[1] != null)
+                {
+                    responseModel.DocumentList = EnumerableExtension.ToList<DocumentReceivingViewModelNew>(dataSet.Tables[0]);
+
+
+                    if (!string.IsNullOrEmpty(chassisNumbers))
+                    {
+                        List<string> chassisNumbersList = new List<string>();
+                        chassisNumbersList = chassisNumbers.Split(',').ToList();
+
+                        for (int item = 0; item < chassisNumbersList.Count; item++)
+                        {
+                            if (!responseModel.DocumentList.Where(x => chassisNumbersList[item].Contains(x.ChassisNumber)).Any())
+                            {
+                                responseModel.MissingChassisList.Add(new MissingChassisNumber
+                                {
+                                    ChassisNumber = chassisNumbersList[item]
+                                });
+                            }
+                        }
+                    }
+
+                    responseModel.TotalResults = Convert.ToInt32(dataSet.Tables[1].Rows[0]["TotalResults"]);
+                    responseModel.CurrentPage = pageNumber;
+                }
+            }
+
+
+
+
+            responseModel.PageSize = pageSize;
+            responseModel.DocumentStatusId = documentStatusId;
+            ViewBag.Message = responseModel.DocumentList.Count == 0 ? "No records found." : "";
+            return PartialView(responseModel);
+        }
+
+        [ValidateInput(false)]
+        public ActionResult _PendingInspectionCertificate(int pageSize, int pageNumber, string chassisNumbers)
+        {
+            DocumentReceivingViewModelResponseModel responseModel = new DocumentReceivingViewModelResponseModel();
+            responseModel.MultipleChassisNumbers = chassisNumbers;
+            chassisNumbers = string.IsNullOrEmpty(chassisNumbers) ? chassisNumbers : chassisNumbers.Trim().Replace(' ', ',');
+
+            DataSet dataSet = ReportMethods.GetPendingInspectionCertioficate(pageSize, pageNumber, chassisNumbers);
+
+            if (dataSet != null)
+            {
+                if (dataSet.Tables[0] != null && dataSet.Tables[0].Rows.Count > 0 && dataSet.Tables[1] != null)
+                {
+                    responseModel.DocumentList = EnumerableExtension.ToList<DocumentReceivingViewModelNew>(dataSet.Tables[0]);
+
+                    if (!string.IsNullOrEmpty(chassisNumbers))
+                    {
+                        List<string> chassisNumbersList = new List<string>();
+                        chassisNumbersList = chassisNumbers.Split(',').ToList();
+
+                        for (int item = 0; item < chassisNumbersList.Count; item++)
+                        {
+                            if (!responseModel.DocumentList.Where(x => chassisNumbersList[item].Contains(x.ChassisNumber)).Any())
+                            {
+                                responseModel.MissingChassisList.Add(new MissingChassisNumber
+                                {
+                                    ChassisNumber = chassisNumbersList[item]
+                                });
+                            }
+                        }
+                    }
+
+                    responseModel.TotalResults = Convert.ToInt32(dataSet.Tables[1].Rows[0]["TotalResults"]);
+                    responseModel.CurrentPage = pageNumber;
+                }
+            }
+
+            responseModel.PageSize = pageSize;
+            ViewBag.Message = responseModel.DocumentList.Count == 0 ? "No records found." : "";
+            return PartialView(responseModel);
+        }
+        #endregion
+
+        #region ZipFileStatus
+        [HttpGet]
+        public ActionResult _ExportDocumentAttachFile()
+        {
+            return PartialView("_AttachFile");
+        }
+
+        [HttpPost]
+        public ActionResult _ExportDocumentFileDetail()
+        {
+            ExportDocumentResponseModel responseModel = new ExportDocumentResponseModel();
+            string chassisNumbers = Utilities.GetZipDirectoryNames(Request.Files);
+
+            if (!string.IsNullOrEmpty(chassisNumbers))
+            {
+                DataTable dataTable = ReportMethods.SelectExportDocumentStatus(chassisNumbers);
+                if (dataTable != null && dataTable.Rows.Count > 0)
+                {
+                    responseModel.ExportDocumentStatusList = EnumerableExtension.ToList<ExportDocumentStatus>(dataTable);
+                }
+                responseModel.IsValid = true;
+            }
+
+            else
+            {
+                responseModel.Message = "No folders found";
+            }
+            return PartialView("_ExportDocumentFileDetail", responseModel);
+        }
+
+        [HttpGet]
+        public ActionResult _CarDocumentAttachFile()
+        {
+            return PartialView("_AttachFile");
+        }
+
+        [HttpPost]
+        public ActionResult _CarDocumentFileDetail()
+        {
+            ExportDocumentResponseModel responseModel = new ExportDocumentResponseModel();
+            string chassisNumbers = Utilities.GetZipDirectoryNames(Request.Files);
+
+            if (!string.IsNullOrEmpty(chassisNumbers))
+            {
+                DataTable dataTable = ReportMethods.SelectCarDocumentStatus(chassisNumbers);
+                if (dataTable != null && dataTable.Rows.Count > 0)
+                {
+                    responseModel.ExportDocumentStatusList = EnumerableExtension.ToList<ExportDocumentStatus>(dataTable);
+                }
+                responseModel.IsValid = true;
+            }
+
+            else
+            {
+                responseModel.Message = "No folders found";
+            }
+            return PartialView("_CarDocumentFileDetail", responseModel);
+        }
+
+        [HttpGet]
+        public ActionResult _InspectionCertificateAttachFile()
+        {
+            return PartialView("_AttachFile");
+        }
+
+        [HttpPost]
+        public ActionResult _InspectionCertificateFileDetail()
+        {
+            ExportDocumentResponseModel responseModel = new ExportDocumentResponseModel();
+            string chassisNumbers = Utilities.GetZipDirectoryNames(Request.Files);
+
+            if (!string.IsNullOrEmpty(chassisNumbers))
+            {
+                DataTable dataTable = ReportMethods.SelectInspectionCertificateStatus(chassisNumbers);
+                if (dataTable != null && dataTable.Rows.Count > 0)
+                {
+                    responseModel.ExportDocumentStatusList = EnumerableExtension.ToList<ExportDocumentStatus>(dataTable);
+                }
+                responseModel.IsValid = true;
+            }
+
+            else
+            {
+                responseModel.Message = "No folders found";
+            }
+            return PartialView("_CarDocumentFileDetail", responseModel);
+        }
+        #endregion
+
+        #region DocumentActions
+        [HttpPost]
+        public ActionResult UpdateCarDocumentStatus(ExportDocumentRequestModel requestModel)
+        {
+            BaseModel baseModel = new BaseModel();
+
+            foreach (var item in requestModel.UpdatedListOfExportDocument)
+            {
+                DocumentMethod.UpdateProductDocumentDetail(item.PurchaseId, item.CustomerProductInvoiceId, GetDefaultValue(item.ShelfId), GetDefaultValue(item.FileNumber), GetDefaultValue(item.ExporterId));
+                DocumentMethod.UpdateProductDocumentStatus(item.CustomerProductInvoiceId , Constants.DocumentType.CarDocument.GetHashCode() , item.DocumentStatusId);
+
+                if(item.DocumentStatusId == Constants.OG_ProductDocumentStatus.CarDocument_Dispatched.GetHashCode())
+                {
+                    DocumentMethod.UpdateProductDocumentStatus(item.CustomerProductInvoiceId, Constants.DocumentType.ExportCertificate.GetHashCode(), 
+                        Constants.OG_ProductDocumentStatus.ExportCertificate_Pending.GetHashCode());
+                }
+
+                //ReportMethods.UpdateCarDocumentStatus(item.ShelfId == 0 ? null : item.ShelfId, item.CustomerProductInvoiceId, item.DocumentStatusId, item.ExporterId == 0 ? null : item.ExporterId);
+            }
+
+            baseModel.IsValid = true;
+            baseModel.Message = "";
+            return Json(baseModel, JsonRequestBehavior.AllowGet);
+        }
+
+
+        private int? GetDefaultValue(int? id)
+        {
+            return id == 0 ? null : id; 
+        }
+
+        [HttpPost]
+        public JsonResult UpdateExportCertificateStatus(ExportDocumentRequestModel requestModel)
+        {
+            BaseModel baseModel = new BaseModel();
+
+            foreach (var item in requestModel.UpdatedListOfExportDocument)
+            {
+                ReportMethods.UpdateExportCertificateStatus(item.ExpiryDate, item.ExporterId == 0 ? null : item.ExporterId, item.ShelfId == 0 ? null : item.ShelfId, item.CustomerProductInvoiceId, item.DocumentStatusId);
+            }
+
+            baseModel.IsValid = true;
+            baseModel.Message = "";
+
+            return Json(baseModel, JsonRequestBehavior.AllowGet);
+        }
+        #endregion
+
+        #region UplaodFiles
+        [HttpPost]
+        public JsonResult UploadExportCertificate(string requestModel)
+        {
+            var documentModel = JsonConvert.DeserializeObject<UploadDocumentRequestModel>(requestModel);
+
+            for (int j = 0; j < documentModel.ListOfDocument.Count; j++)
+            {
+                if (documentModel.ListOfDocument[j].StatusId == 2)
+                {
+                    DocumentMethod.DeleteProductDocuments(documentModel.ListOfDocument[j].CustomerProductInvoiceId, (int)Constants.DocumentType.ExportCertificate);
+                }
+            }
+
+            var responseMOdel = Utilities.UploadFile(documentModel, (int)Constants.DocumentType.ExportCertificate, Request.Files);
+
+            for (int i = 0; i < documentModel.ListOfDocument.Count; i++)
+            {
+                if (documentModel.ListOfDocument[i].IsAvailable)
+                {
+                    DocumentMethod.UpdateProductDocumentStatus(documentModel.ListOfDocument[i].CustomerProductInvoiceId, (int)Constants.DocumentType.ExportCertificate
+                                                            , (int)Constants.OG_ProductDocumentStatus.ExportCertifcate_Uploaded);
+                }
+            }
+
+            return Json(responseMOdel, JsonRequestBehavior.AllowGet);
+
+        }
+
+        [HttpPost]
+        public JsonResult UploadCarDocument(string requestModel)
+        {
+            var documentModel = JsonConvert.DeserializeObject<UploadDocumentRequestModel>(requestModel);
+
+            for (int j = 0; j < documentModel.ListOfDocument.Count; j++)
+            {
+                if (documentModel.ListOfDocument[j].StatusId == 2)
+                {
+                    DocumentMethod.DeleteProductDocuments(documentModel.ListOfDocument[j].CustomerProductInvoiceId, (int)Constants.DocumentType.CarDocument);
+                }
+            }
+
+
+            var responseMOdel = Utilities.UploadFile(documentModel, (int)Constants.DocumentType.CarDocument, Request.Files);
+
+            for (int i = 0; i < documentModel.ListOfDocument.Count; i++)
+            {
+                if (documentModel.ListOfDocument[i].IsAvailable)
+                {
+                    DocumentMethod.UpdateProductDocumentStatus(documentModel.ListOfDocument[i].CustomerProductInvoiceId, (int)Constants.DocumentType.CarDocument
+                                                            , (int)Constants.OG_ProductDocumentStatus.CarDocument_Uploaded);
+                }
+            }
+            return Json(responseMOdel, JsonRequestBehavior.AllowGet);
+        }
+
+        [HttpPost]
+        public JsonResult UploadInspectionCertificate(string requestModel)
+        {
+            var documentModel = JsonConvert.DeserializeObject<UploadDocumentRequestModel>(requestModel);
+
+            for (int j = 0; j < documentModel.ListOfDocument.Count; j++)
+            {
+                if (documentModel.ListOfDocument[j].StatusId == 2)
+                {
+                    DocumentMethod.DeleteProductDocuments(documentModel.ListOfDocument[j].CustomerProductInvoiceId, (int)Constants.DocumentType.InspectionCertificate);
+                }
+            }
+
+            var responseMOdel = Utilities.UploadFile(documentModel, (int)Constants.DocumentType.InspectionCertificate, Request.Files);
+
+            for (int i = 0; i < documentModel.ListOfDocument.Count; i++)
+            {
+                if (documentModel.ListOfDocument[i].IsAvailable)
+                {
+                    DocumentMethod.UpdateProductDocumentStatus(documentModel.ListOfDocument[i].CustomerProductInvoiceId, (int)Constants.DocumentType.InspectionCertificate
+                                                            , (int)Constants.OG_ProductDocumentStatus.Inspection_Certificate_Uploaded);
+                }
+            }
+            return Json(responseMOdel, JsonRequestBehavior.AllowGet);
+        }
+        #endregion
+
+        #region Export To Excel
+        [HttpGet]
+        public void CarDocumentToExcel(string chassisNumbers, int documentStatusId)
+        {
+            DataTable dt = new DataTable();
+            chassisNumbers = string.IsNullOrEmpty(chassisNumbers) ? chassisNumbers : chassisNumbers.Trim().Replace(' ', ',');
+            dt = ReportMethods.GetPendingCarDocument(null, null, chassisNumbers, documentStatusId).Tables[0];
+            Utilities.ExportToExcel(dt, "CarDocumentReport");
+        }
+
+        [HttpGet]
+        public void ExportCertificateToExcel(string chassisNumbers, int documentStatusId)
+        {
+            DataTable dt = new DataTable();
+            chassisNumbers = string.IsNullOrEmpty(chassisNumbers) ? chassisNumbers : chassisNumbers.Trim().Replace(' ', ',');
+            dt = ReportMethods.GetPendingExportCertificate(null, null, chassisNumbers, documentStatusId).Tables[0];
+            Utilities.ExportToExcel(dt, "ExportCertificateReport");
+
+        }
+
+        [HttpGet]
+        public void InspectionCertificateToExcel(string chassisNumbers, int documentStatusId)
+        {
+            DataTable dt = new DataTable();
+            chassisNumbers = string.IsNullOrEmpty(chassisNumbers) ? chassisNumbers : chassisNumbers.Trim().Replace(' ', ',');
+            dt = ReportMethods.GetPendingInspectionCertioficate(null, null, chassisNumbers).Tables[0];
+            Utilities.ExportToExcel(dt, "InspectionCertificateReport");
+        }
+
+        [HttpGet]
+        [ActionName("ExportToExcelPendingDocument")]
+        public void ExportToExcel(DateTime? DateFrom, DateTime? ToDate, int? DocumentStatusId, int? ClientId)
+        {
+            DataTable dt = new DataTable();
+
+            DataSet dataSet = DocumentMethod.GetPendingDocumentsDetail(DateFrom, ToDate, DocumentStatusId, ClientId);
+
+            dt = dataSet.Tables[0];
+
+            if (DocumentStatusId == null)
+            {
+                int[] DocumentPendingStatus = { (int)Constants.OG_ProductDocumentStatus.CarDocuments_Pending, (int)Constants.OG_ProductDocumentStatus.ExportCertificate_Pending, (int)Constants.OG_ProductDocumentStatus.UnitPictures_Pending, (int)Constants.OG_ProductDocumentStatus.Alteration_Pending, (int)Constants.OG_ProductDocumentStatus.Inspection_Pending, (int)Constants.OG_ProductDocumentStatus.ShipmentBooking_Pending, (int)Constants.OG_ProductDocumentStatus.ShipmentBooking_Requested, (int)Constants.OG_ProductDocumentStatus.BLPending, (int)Constants.OG_ProductDocumentStatus.BLUploadedPaymentPending, (int)Constants.OG_ProductDocumentStatus.BLPaymentDoneRequestEmailPending };
+
+                Utilities.ExportToExcel(dt, "PendingDocumentReport", DocumentPendingStatus);
+            }
+            else
+            {
+                Utilities.ExportToExcel(dt, "PendingDocumentReport");
+            }
+        }
+        #endregion
+
+        #region Reports
+        public ActionResult PendingDocumentReport()
+        {
+            return View();
+        }
+        public ActionResult _PendingDocumentReport(DateTime? DateFrom, DateTime? ToDate)
+        {
+            PendingDocumentReportModel objPendingDocumentReportModel = new PendingDocumentReportModel();
+
+            DataSet dataSet = DocumentMethod.GetPendingDocuments(DateFrom, ToDate);
+
+            if (dataSet != null)
+            {
+                objPendingDocumentReportModel.ListOfPendingDocument = EnumerableExtension.ToList<PendingDocument>(dataSet.Tables[0]);
+                PendingDocument objPendingDocument = new PendingDocument();
+                foreach (var listItems in objPendingDocumentReportModel.ListOfPendingDocument)
+                {
+                    objPendingDocument.ClientId = -1;
+                    objPendingDocument.Title = "Grand Total";
+                    objPendingDocument.CarDocumentsPending += listItems.CarDocumentsPending;
+                    objPendingDocument.ExportCertificatePending += listItems.ExportCertificatePending;
+                    objPendingDocument.UnitPicturesPending += listItems.UnitPicturesPending;
+                    objPendingDocument.AlterationPending += listItems.AlterationPending;
+                    objPendingDocument.InspectionPending += listItems.InspectionPending;
+                    objPendingDocument.ShipmentBookingPending += listItems.ShipmentBookingPending;
+                    objPendingDocument.ShipmentBookingRequested += listItems.ShipmentBookingRequested;
+                    objPendingDocument.BLPending += listItems.BLPending;
+                    objPendingDocument.BLUploaded += listItems.BLUploaded;
+                    objPendingDocument.BLPaymentDone += listItems.BLPaymentDone;
+                    objPendingDocument.DHLPending += listItems.DHLPending;
+                }
+                objPendingDocumentReportModel.ListOfPendingDocument.Add(objPendingDocument);
+            }
+            else
+            {
+                return Content("");
+            }
+
+            return PartialView(objPendingDocumentReportModel);
+        }
+        public ActionResult _PendingDocumentReportDetail(PendingDocumentDetailParameterModel objPendingDocumentDetailParameterModel)
+        {
+
+            PendingDocumentReportDetailModel objPendingDocumentReportDetailModel = new PendingDocumentReportDetailModel();
+
+            DataSet dataSet = DocumentMethod.GetPendingDocumentsDetail(objPendingDocumentDetailParameterModel.DateFrom, objPendingDocumentDetailParameterModel.ToDate, objPendingDocumentDetailParameterModel.DocumentStatusId, objPendingDocumentDetailParameterModel.ClientId);
+
+            if (dataSet != null)
+            {
+
+                objPendingDocumentReportDetailModel.ListOfPendingDocumentDetail = EnumerableExtension.ToList<PendingDocumentDetail>(dataSet.Tables[0]);
+                objPendingDocumentReportDetailModel.DateFrom = objPendingDocumentDetailParameterModel.DateFrom;
+                objPendingDocumentReportDetailModel.ToDate = objPendingDocumentDetailParameterModel.ToDate;
+                objPendingDocumentReportDetailModel.DocumentStatusId = objPendingDocumentDetailParameterModel.DocumentStatusId;
+                objPendingDocumentReportDetailModel.ClientId = objPendingDocumentDetailParameterModel.ClientId;
+            }
+            else
+            {
+                return Content("");
+            }
+
+            return PartialView(objPendingDocumentReportDetailModel);
+        }
+        #endregion
+    }
+}
+
+
+--------------------------------------
+HomeController.cs
+
+
+
+using Automobile.Admin.Models;
+using JTJapan.Core.AdminArea;
+using JTJapan.Core.AdminArea.ViewModel;
+using JTJapan.Core.Helper;
+using System;
+using System.Collections.Generic;
+using System.Web.Mvc;
+using Newtonsoft.Json;
+using System.Configuration;
+using Automobile.Admin.Models;
+using System.Collections;
+using System.Data;
+using JTJapan.Core;
+using System.Net.Http;
+using System.Net;
+using System.Text.RegularExpressions;
+using System.Text;
+using System.IO;
+using System.Web.UI;
+using System.Web.UI.HtmlControls;
+
+namespace Automobile.Admin.Controllers
+{
+    public class HomeController : BaseController
+    {
+        public ActionResult Index()
+        {
+            return View();
+        }
+
+        public ActionResult Dashboard()
+        {
+            return View();
+        }
+        public ActionResult _Dashboard(DateTime DateFrom, DateTime ToDate)
+        {
+
+            DataTable dtDashboardCount = ScreenMethods.GetDashboardCount(DateFrom, ToDate);
+            DataTable dtDocumentStatus = ScreenMethods.GetDashboardDocumentStatus();
+
+            DashboardModel objDashboardModel = new DashboardModel();
+
+            if (dtDashboardCount != null && dtDashboardCount.Rows.Count > 0)
+            {
+                objDashboardModel.DashboardCountList = EnumerableExtension.ToList<DashboardCounts>(dtDashboardCount);
+            }
+            if (dtDocumentStatus != null && dtDocumentStatus.Rows.Count > 0)
+            {
+                objDashboardModel.DocumentStatusList = EnumerableExtension.ToList<DocumentsStatus>(dtDocumentStatus);
+            }
+            return PartialView(objDashboardModel);
+        }
+        public ActionResult _Header()
+        {
+            try
+            {
+                ViewBag.ClientList = UsersMethods.GetUserClient(AuthBase.UserId, false);
+            }
+            catch (Exception)
+            {
+
+            }
+            return View();
+        }
+
+
+
+        [HttpPost]
+        [ValidateInput(false)]
+        public ActionResult SearchMaster(string txtsearch)
+        {
+            ViewData["txtSearch"] = txtsearch;
+            return View(GetSearchedResult(txtsearch));
+        }
+
+        [HttpGet]
+        public ActionResult SearchMaster()
+        {
+            return View();
+        }
+        
+        [AcceptVerbs("Get", "Post")]
+        [ValidateInput(false)]
+        public ActionResult _SearchMaster(string txtsearch = null, string clienttype = null)
+        {
+            ViewData["txtSearch"] = txtsearch;
+            if (!string.IsNullOrEmpty(clienttype))
+                ViewData["clienttype"] = "-1";
+            else
+                ViewData["clienttype"] = "1";
+
+            return PartialView(GetSearchedResult(txtsearch));
+        }
+        [HttpGet]
+        public ActionResult SearchMasterResult()
+        {
+            ViewData["txtSearch"] = "";
+            return PartialView(GetSearchedResult(null));
+        }
+        public JsonResult MultipleImages(int dtid, int cpid,int purid)
+        {
+            DataSet dsImages = DocumentMethod.GetDocumentsByTypeId(cpid, dtid, purid);
+            List<ProductDocumentViewModel> multiImages = EnumerableExtension.ToList<ProductDocumentViewModel>(dsImages.Tables[0]);
+            return Json(multiImages, JsonRequestBehavior.AllowGet);
+        }
+    
+        public ActionResult _LeftSidebar()
+        {
+            List<AdminMenu> lstMenu = new List<AdminMenu>();
+            try
+            {
+                lstMenu = ReportMethods.GetAdminMenu(AuthBase.UserId, AuthBase.ClientId, true);
+            }
+            catch (Exception)
+            {
+
+            }
+            return View(lstMenu);
+        }
+        public JsonResult UpdateClientId(int ClientId)
+        {
+            AuthBase.ClientId = ClientId;
+            return Json(true);
+        }
+
+        #region internal methods for master search
+        public List<SearchedResult> GetSearchedResult(string srchValue)
+        {
+            DataSet dsSearch = JTJapan.Core.AdminArea.ShipmentReportMethods.GetSearchedDataset(srchValue);
+            SearchedResult srchResult = new SearchedResult();
+            srchResult.Purchase = new List<SearchedPurchase>();
+            srchResult.Invoice = new List<SearchedInvoice>();
+            srchResult.ProductDocumentStatus = new List<SearchedProductDocumentStatus>();
+            srchResult.Customer = new List<SearchedCustomer>();
+
+            if (dsSearch.Tables.Count > 0)
+            {
+                srchResult.Purchase = EnumerableExtension.ToList<SearchedPurchase>(dsSearch.Tables[0]);
+                srchResult.Invoice = EnumerableExtension.ToList<SearchedInvoice>(dsSearch.Tables[1]);
+                srchResult.Customer = EnumerableExtension.ToList<SearchedCustomer>(dsSearch.Tables[2]);
+                srchResult.ProductDocumentStatus = EnumerableExtension.ToList<SearchedProductDocumentStatus>(dsSearch.Tables[3]);
+            }
+            List<SearchedResult> ResultList = new List<SearchedResult>();
+            ResultList.Add(srchResult);
+
+            return ResultList;
+        }
+
+
+
+        #endregion
+
+
+
+
+
+    }
+}
+
+------------------------------------
+ShippingController.cs
+
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+using System.Data;
+using JTJapan.Core.AdminArea.ViewModel;
+using JTJapan.Core.AdminArea;
+using JTJapan.Core;
+using Newtonsoft.Json;
+using JTJapan.Core.Helper;
+using Ionic.Zip;
+using System.IO;
+using OfficeOpenXml;
+using System.Configuration;
+using System.Text.RegularExpressions;
+using Novacode;
+using Automobile.Admin.Models;
+namespace Automobile.Admin.Controllers
+{
+    public class ShippingController : BaseController
+    {
+        const string table_pattern = "<table class=main>(.*?)</table>";
+        const string tr_pattern = "<tr.*?>(.*?)</tr>";
+        const string td_pattern = "<td.*?>(.*?)</td>";
+        string VD = ConfigurationManager.AppSettings["DocPath"];
+        string SubPath = ConfigurationManager.AppSettings["SubPath"].ToString();
+
+        #region Shipping Schedule
+
+        private List<SelectListItem> GetPortList()
+        {
+            List<SelectListItem> OG_PortList = new List<SelectListItem>();
+            OG_PortList = UsersMethods.GetPortList().Select(i => new SelectListItem()
+            {
+                Value = i.Id.ToString(),
+                Text = i.Title
+            }).ToList();
+            OG_PortList.Insert(0, new SelectListItem() { Value = "0", Text = "Select Port" });
+            return OG_PortList;
+        }
+
+        public ActionResult Index()
+        {
+            ViewBag.Port = GetPortList();
+            ViewBag.Vessel = ShippingMethod.OG_Vessel();
+            return View();
+        }
+
+        [HttpGet]
+        public JsonResult GetShippingSchedule(int month, int year, int vesselId)
+        {
+            ShippoingSchedulingResponseModel responseModel = new ShippoingSchedulingResponseModel();
+            DataTable dt = ShippingMethod.SelectShippingSchedule(month, year, vesselId);
+
+            if (dt != null && dt.Rows.Count > 0)
+            {
+                responseModel.SchedulingList = EnumerableExtension.ToList<ShippingViewModel>(dt);
+                responseModel.IsValid = true;
+            }
+            return Json(responseModel, JsonRequestBehavior.AllowGet);
+
+        }
+
+        [HttpPost]
+        public JsonResult AddOrUpdateShippingShcedule(ShippingViewModel values)
+        {
+            ShippingViewModel responsemodel = new ShippingViewModel();
+            DataTable dt = ShippingMethod.InsertOrUpdateShippingSchedule(values.VesselId, values.Date, values.PortId);
+
+            if (dt != null && dt.Rows.Count > 0)
+            {
+                responsemodel.IsValid = true;
+                responsemodel.ShippingScheduleId = Convert.ToInt32(dt.Rows[0]["ShippingScheduleId"]);
+            }
+
+            return Json(responsemodel, JsonRequestBehavior.AllowGet);
+        }
+
+        [HttpPost]
+        public JsonResult DeleteShippingSchedule([System.Web.Http.FromBody]int shippingScheduleId)
+        {
+            BaseModel baseModel = new BaseModel();
+            ShippingMethod.DeleteShippingSchedule(shippingScheduleId);
+
+            baseModel.IsValid = true;
+            return Json(baseModel, JsonRequestBehavior.AllowGet);
+        }
+
+        #endregion
+
+        #region BLPending
+        public ActionResult BLPending()
+        {
+            return View();
+        }
+        public ActionResult _BLPending(int PageCount, int PageSize, int? ShippingVendorId, string ChasisNo, int DocumentStatusId = (int)Constants.OG_ProductDocumentStatus.BLPending)
+        {
+            BLPendingModel objBLPendingModel = new BLPendingModel();
+
+            //ChasisNo = string.IsNullOrEmpty(ChasisNo) ? ChasisNo : ChasisNo.Trim().Replace(' ', ',');
+
+            DataSet dataSet = ShippingMethod.GetBLPending(PageCount, PageSize, ShippingVendorId, ChasisNo, DocumentStatusId);
+
+            if (dataSet != null)
+            {
+                objBLPendingModel.BLPendingCountVendorWise = EnumerableExtension.ToList<BLPendingCountVendorWise>(dataSet.Tables[0]);
+                objBLPendingModel.BLPendingList = EnumerableExtension.ToList<BLPending>(dataSet.Tables[1]);
+                objBLPendingModel.TotalResults = Convert.ToInt32(dataSet.Tables[2].Rows[0]["TotalResult"]);
+                objBLPendingModel.CurrentPage = PageCount;
+                objBLPendingModel.PageSize = PageSize;
+                objBLPendingModel.ShippingVendorId = ShippingVendorId;
+                objBLPendingModel.DocumentStatusId = DocumentStatusId;
+                if (dataSet.Tables.Count > 3 && dataSet.Tables[3].Rows.Count > 0)
+                {
+                    objBLPendingModel.MissingChassisNoList = EnumerableExtension.ToList<MissingChassisNo>(dataSet.Tables[3]);
+                }
+            }
+            else
+            {
+                return Content("");
+            }
+
+            return PartialView(objBLPendingModel);
+        }
+
+        [HttpPost]
+        public JsonResult UploadBLPictures(string requestModel)
+        {
+            var documentModel = JsonConvert.DeserializeObject<UploadDocumentRequestModel>(requestModel);
+            for (int j = 0; j < documentModel.ListOfDocument.Count; j++)
+            {
+                if (documentModel.ListOfDocument[j].StatusId == 2)
+                {
+                    DocumentMethod.DeleteProductDocuments(documentModel.ListOfDocument[j].CustomerProductInvoiceId, (int)Constants.DocumentType.BL);
+                }
+            }
+            var responseMOdel = Utilities.UploadFile(documentModel, (int)Constants.DocumentType.BL, Request.Files);
+
+            for (int i = 0; i < documentModel.ListOfDocument.Count; i++)
+            {
+                if (documentModel.ListOfDocument[i].IsAvailable == true)
+                {
+                    DocumentMethod.UpdateProductDocumentStatus(documentModel.ListOfDocument[i].CustomerProductInvoiceId, (int)Constants.DocumentType.BL
+                                                            , (int)Constants.OG_ProductDocumentStatus.BLUploadedPaymentPending);
+                }
+            }
+            return Json(responseMOdel, JsonRequestBehavior.AllowGet);
+        }
+        [HttpGet]
+        public ActionResult _BLStatus()
+        {
+            return PartialView();
+        }
+        [HttpPost]
+        public ActionResult _BLStatusDetail()
+        {
+            BLStatuseModel responseModel = new BLStatuseModel();
+            string chassisNumbers = Utilities.GetZipDirectoryNames(Request.Files);
+
+            if (!string.IsNullOrEmpty(chassisNumbers))
+            {
+                DataTable dataTable = ShippingMethod.SelectBLStatus(chassisNumbers);
+                if (dataTable != null && dataTable.Rows.Count > 0)
+                {
+                    responseModel.BLStatusList = EnumerableExtension.ToList<BLStatus>(dataTable);
+                }
+
+                foreach (var item in responseModel.BLStatusList)
+                {
+                    if (item.StatusId == 1)
+                    {
+                        item.Comments = "Document can be uploaded";
+                    }
+
+                    else if (item.StatusId == 2)
+                    {
+                        item.Comments = "Document already uploaded";
+                    }
+
+                    else
+                    {
+                        item.Comments = "Chassis number not found";
+                    }
+                }
+                responseModel.IsValid = true;
+            }
+
+            else
+            {
+                responseModel.Message = "No folders found";
+            }
+
+            return PartialView("_BLStatusDetail", responseModel);
+        }
+        [HttpPost]
+        [ValidateInput(false)]
+        public string UpdateBLNumber(BLNumberData[] BLNumberData)
+        {
+
+            string msg = "";
+            if (BLNumberData != null)
+            {
+                try
+                {
+                    foreach (BLNumberData items in BLNumberData)
+                    {
+
+                        ShippingMethod.UpdateBLNumber(Convert.ToInt32(items.PID), items.BLNo);
+                    }
+                    msg = "success";
+                }
+                catch (Exception ex)
+                {
+                    msg = ex.Message;
+                }
+            }
+            return msg;
+        }
+        #endregion
+
+        #region BLPaymentPending
+        public ActionResult BLPaymentPending()
+        {
+            return View();
+        }
+        public ActionResult _BLPaymentPending(int PageCount, int PageSize, int? ShippingVendorId, string ChasisNo)
+        {
+            BLPaymentPendingModel objBLPaymentPendingModel = new BLPaymentPendingModel();
+
+            DataSet dataSet = ShippingMethod.GetBLPaymentPending(PageCount, PageSize, ShippingVendorId, ChasisNo);
+
+            if (dataSet != null && dataSet.Tables[0] != null && dataSet.Tables[0].Rows.Count > 0 && dataSet.Tables[1] != null)
+            {
+                objBLPaymentPendingModel.BLPaymentPendingCountVendorWise = EnumerableExtension.ToList<BLPaymentPendingCountVendorWise>(dataSet.Tables[0]);
+                objBLPaymentPendingModel.BLPaymentPendingList = EnumerableExtension.ToList<BLPaymentPending>(dataSet.Tables[1]);
+                objBLPaymentPendingModel.TotalResults = Convert.ToInt32(dataSet.Tables[2].Rows[0]["TotalResult"]);
+                objBLPaymentPendingModel.CurrentPage = PageCount;
+                objBLPaymentPendingModel.PageSize = PageSize;
+                objBLPaymentPendingModel.ShippingVendorId = ShippingVendorId;
+                if (dataSet.Tables.Count > 3 && dataSet.Tables[3].Rows.Count > 0)
+                {
+                    objBLPaymentPendingModel.MissingChassisNoList = EnumerableExtension.ToList<MissingChassisNo>(dataSet.Tables[3]);
+                }
+            }
+            else
+            {
+                objBLPaymentPendingModel.BLPaymentPendingCountVendorWise = EnumerableExtension.ToList<BLPaymentPendingCountVendorWise>(dataSet.Tables[0]);
+                objBLPaymentPendingModel.BLPaymentPendingList = EnumerableExtension.ToList<BLPaymentPending>(dataSet.Tables[1]);
+                objBLPaymentPendingModel.TotalResults = Convert.ToInt32(dataSet.Tables[2].Rows[0]["TotalResult"]);
+                objBLPaymentPendingModel.CurrentPage = PageCount;
+                objBLPaymentPendingModel.PageSize = PageSize;
+                objBLPaymentPendingModel.ShippingVendorId = ShippingVendorId;
+                return PartialView(objBLPaymentPendingModel);
+            }
+
+            return PartialView(objBLPaymentPendingModel);
+        }
+
+
+        [HttpPost]
+        public string UpdateBLPaymentDone(ExportPaymentDoneModel objects)
+        {
+            string msg = "";
+            if (objects != null)
+            {
+                try
+                {
+                    foreach (var obj in objects.UpdateListOfPaymentDoneModel)
+                    {
+                        if (obj.pid != 0)
+                        {
+                            DocumentMethod.UpdateProductDocumentStatusByPurchaseId(Convert.ToInt32(obj.pid), Constants.DocumentType.BL.GetHashCode(), Constants.OG_ProductDocumentStatus.BLPaymentDoneRequestEmailPending.GetHashCode());
+                            ShippingMethod.UpdateFreightCharges(Convert.ToInt32(obj.pid), Convert.ToDecimal(obj.cost));
+                        }
+                    }
+                    msg = "success";
+                }
+                catch (Exception ex)
+                {
+                    msg = ex.Message;
+                }
+            }
+            else
+            {
+                msg = "Please select at least one record";
+            }
+            return msg;
+        }
+        #endregion
+
+
+        #region BLRequestEmail
+        public ActionResult BLRequestEmail()
+        {
+            return View();
+        }
+
+        public ActionResult _BLRequestEmail(int PageCount, int PageSize, int? ShippingVendorId, string ChasisNo)
+        {
+            BLRequestEmailModel objBLRequestEmailModel = new BLRequestEmailModel();
+
+            DataSet dataSet = ShippingMethod.GetPaymentDoneRecords(PageCount, PageSize, ShippingVendorId, ChasisNo);
+
+            if (dataSet != null && dataSet.Tables[0] != null && dataSet.Tables[0].Rows.Count > 0 && dataSet.Tables[1] != null)
+            {
+                objBLRequestEmailModel.BLRequestEmailCountVendorWise = EnumerableExtension.ToList<BLRequestEmailCountVendorWise>(dataSet.Tables[0]);
+                objBLRequestEmailModel.BLRequestEmailList = EnumerableExtension.ToList<BLRequestEmail>(dataSet.Tables[1]);
+                objBLRequestEmailModel.TotalResults = Convert.ToInt32(dataSet.Tables[2].Rows[0]["TotalResult"]);
+                objBLRequestEmailModel.CurrentPage = PageCount;
+                objBLRequestEmailModel.PageSize = PageSize;
+                objBLRequestEmailModel.ShippingVendorId = ShippingVendorId;
+                if (dataSet.Tables.Count > 3 && dataSet.Tables[3].Rows.Count > 0)
+                {
+                    objBLRequestEmailModel.MissingChassisNoList = EnumerableExtension.ToList<MissingChassisNo>(dataSet.Tables[3]);
+                }
+            }
+            else
+            {
+                objBLRequestEmailModel.BLRequestEmailCountVendorWise = EnumerableExtension.ToList<BLRequestEmailCountVendorWise>(dataSet.Tables[0]);
+                objBLRequestEmailModel.BLRequestEmailList = EnumerableExtension.ToList<BLRequestEmail>(dataSet.Tables[1]);
+                objBLRequestEmailModel.TotalResults = Convert.ToInt32(dataSet.Tables[2].Rows[0]["TotalResult"]);
+                objBLRequestEmailModel.CurrentPage = PageCount;
+                objBLRequestEmailModel.PageSize = PageSize;
+                objBLRequestEmailModel.ShippingVendorId = ShippingVendorId;
+                return PartialView(objBLRequestEmailModel);
+            }
+
+            return PartialView(objBLRequestEmailModel);
+        }
+
+        [HttpGet]
+        public ActionResult _SendEmailPreview(string CustomerProductInvoiceId)
+        {
+            try
+            {
+                ViewBag.CustomerProductInvoiceId = CustomerProductInvoiceId;
+                List<BLEmailModel> model = new List<BLEmailModel>();
+                List<BLEmailModel> response = new List<BLEmailModel>();
+                string Link = "";
+                SecureQueryString ObjSecureQueryString = new SecureQueryString();
+                Link = ObjSecureQueryString.encrypt("id=" + CustomerProductInvoiceId + "&type=" + 3);
+                model = ShippingMethod.GetEmailForPreview(Convert.ToInt32(CustomerProductInvoiceId));
+                BLEmailModel obj = new BLEmailModel();
+                obj = model[0];
+                obj.EmailBody = obj.EmailBody.Replace("[Var_ShippingContactName]", obj.ShippingContactName);
+                obj.EmailBody = obj.EmailBody.Replace("[Var_Chassis]", obj.ChassisNumber);
+                obj.EmailBody = obj.EmailBody.Replace("[Var_BLNo]", obj.BLNo);
+                obj.EmailBody = obj.EmailBody.Replace("[Var_VesselName]", obj.Vessel);
+                obj.EmailBody = obj.EmailBody.Replace("[Var_VoyageNo]", obj.VoyageNo);
+                response.Add(obj);
+                return PartialView(response);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        [HttpPost]
+        [ValidateInput(false)]
+        public string InsertEmailTemplate(string customerproductinvoiceid, string ccemail, string fromemail, string toemail, string body, string tmpId = "0")
+        {
+            try
+            {
+                ShippingMethod.InsertEmailTemplateForBLRequest(Convert.ToInt32(customerproductinvoiceid), AuthBase.ClientId, ccemail, fromemail, toemail, int.Parse(tmpId), body);
+                //DocumentMethod.UpdateProductDocumentStatus(Convert.ToInt32(customerproductinvoiceid), Constants.DocumentType.BL.GetHashCode(), Constants.OG_ProductDocumentStatus.EmailDoneReceivingPending.GetHashCode());
+
+                return "success";
+            }
+            catch (Exception ex) { return "error"; }
+        }
+
+        #endregion
+
+
+        #region BLReceivingPending
+        public ActionResult BLReceivingPending()
+        {
+            return View();
+        }
+        public ActionResult _BLReceivingPending(int PageCount, int PageSize, int? ShippingVendorId, string ChasisNo)
+        {
+            BLReceivingPendingModel objBLReceivingPendingModel = new BLReceivingPendingModel();
+
+            DataSet dataSet = ShippingMethod.GetBLEmailDoneRecords(PageCount, PageSize, ShippingVendorId, ChasisNo);
+
+            if (dataSet != null && dataSet.Tables[0] != null && dataSet.Tables[0].Rows.Count > 0 && dataSet.Tables[1] != null)
+            {
+                objBLReceivingPendingModel.BLReceivingPendingCountVendorWise = EnumerableExtension.ToList<BLReceivingPendingCountVendorWise>(dataSet.Tables[0]);
+                objBLReceivingPendingModel.BLReceivingPendingList = EnumerableExtension.ToList<BLReceivingPending>(dataSet.Tables[1]);
+                objBLReceivingPendingModel.TotalResults = Convert.ToInt32(dataSet.Tables[2].Rows[0]["TotalResult"]);
+                objBLReceivingPendingModel.CurrentPage = PageCount;
+                objBLReceivingPendingModel.PageSize = PageSize;
+                objBLReceivingPendingModel.ShippingVendorId = ShippingVendorId;
+                if (dataSet.Tables.Count > 3 && dataSet.Tables[3].Rows.Count > 0)
+                {
+                    objBLReceivingPendingModel.MissingChassisNoList = EnumerableExtension.ToList<MissingChassisNo>(dataSet.Tables[3]);
+                }
+            }
+            else
+            {
+                objBLReceivingPendingModel.BLReceivingPendingCountVendorWise = EnumerableExtension.ToList<BLReceivingPendingCountVendorWise>(dataSet.Tables[0]);
+                objBLReceivingPendingModel.BLReceivingPendingList = EnumerableExtension.ToList<BLReceivingPending>(dataSet.Tables[1]);
+                objBLReceivingPendingModel.TotalResults = Convert.ToInt32(dataSet.Tables[2].Rows[0]["TotalResult"]);
+                objBLReceivingPendingModel.CurrentPage = PageCount;
+                objBLReceivingPendingModel.PageSize = PageSize;
+                objBLReceivingPendingModel.ShippingVendorId = ShippingVendorId;
+                return PartialView(objBLReceivingPendingModel);
+            }
+
+            return PartialView(objBLReceivingPendingModel);
+        }
+
+        [HttpPost]
+        public string UpdateBLReceived(ExportPaymentReceiveModel objects)
+        {
+            string msg = "";
+            if (objects != null)
+            {
+                try
+                {
+                    foreach (var obj in objects.UpdateListOfPaymentReceiveModel)
+                    {
+                        if (obj.cpid != 0)
+                        {
+                            DocumentMethod.UpdateProductDocumentStatus(Convert.ToInt32(obj.cpid), Constants.DocumentType.BL.GetHashCode(), Constants.OG_ProductDocumentStatus.BLReceived.GetHashCode());
+                        }
+                    }
+                    msg = "success";
+                }
+                catch (Exception ex)
+                {
+                    msg = ex.Message;
+                }
+            }
+            else
+            {
+                msg = "Please select at least one record";
+            }
+            return msg;
+        }
+        #endregion
+
+        #region Shipping Booking
+        public ActionResult ShippingReport()
+        {
+            ViewBag.DocumentStatus = ShippingMethod.GetDocumentStatusByType(Constants.DocumentType.ShipmentOrderFile.GetHashCode());
+            ViewBag.ShippingVendorList = OGMethods.ShippingVendorList();
+            return View();
+        }
+
+
+        public ActionResult _ShippingSchedulePopup(int DeparturePortID, int ArrivalPortID, int CustomerProductInvoiceID, int CustomerProductId, int ClientId, int ShippingVendorId, int VesselVoyageId
+            , string ArrivalPort, string DeparturePort, int PurchaseId, string ShippingVendor)
+        {
+
+            ViewBag.CustomerProductInvoiceID = CustomerProductInvoiceID;
+            ViewBag.CustomerProductId = CustomerProductId;
+            ViewBag.ClientId = ClientId;
+            ViewBag.ShippingVendorId = ShippingVendorId;
+            ViewBag.VesselVoyageId = VesselVoyageId;
+            ViewBag.ArrivalPort = ArrivalPort;
+            ViewBag.DeparturePort = DeparturePort;
+            ViewBag.DeparturePortID = DeparturePortID;
+            ViewBag.ArrivalPortID = ArrivalPortID;
+            ViewBag.ShippingVendorList = OGMethods.ShippingVendorList();
+            ViewBag.PurchaseId = PurchaseId;
+            ViewBag.ShippingVendor = ShippingVendor;
+
+            DataSet ds = new DataSet();
+
+            ds = ShippingMethod.GetShippingSchedule(DeparturePortID, ArrivalPortID, CustomerProductInvoiceID);
+            ShippingScheduleViewModel obj = new ShippingScheduleViewModel();
+
+            ShippingScheduleResponse model = new ShippingScheduleResponse();
+            model.ShippingScheduleViewModelList = EnumerableExtension.ToList<ShippingScheduleViewModel>(ds.Tables[0]);
+            model.objShippingScheduleViewModel = EnumerableExtension.ToList<ShippingScheduleViewModel>(ds.Tables[1]);
+
+            return PartialView(model);
+        }
+        public ActionResult _ShippingEmailPopUp(int CustomerProductInvoiceId)
+        {
+            DataSet ds = new DataSet();
+            DataTable dt = new DataTable();
+
+            ViewBag.CustomerProductInvoiceId = CustomerProductInvoiceId;
+
+            List<ShippingEmailViewModel> objLst = new List<ShippingEmailViewModel>();
+
+            ds = ShippingMethod.GetShippingEmailDetail(CustomerProductInvoiceId);
+
+            if (ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
+            {
+                dt = ds.Tables[0];
+                for (int i = 0; i < dt.Rows.Count; i++)
+                {
+                    ShippingEmailViewModel obj = new ShippingEmailViewModel();
+
+                    obj.CustomerProductInvoiceiD = Convert.ToInt32(dt.Rows[i]["CustomerProductInvoiceiD"]);
+                    obj.PortId = Convert.ToInt32(dt.Rows[i]["PortId"]);
+                    obj.CustomerProductId = Convert.ToInt32(dt.Rows[i]["CustomerProductId"]);
+                    obj.DeparturePort = dt.Rows[i]["DeparturePort"].ToString();
+                    obj.ChassisNumber = dt.Rows[i]["ChassisNumber"].ToString();
+                    obj.PurchaseDate = Convert.ToDateTime(dt.Rows[i]["PurchaseDate"]).ToString("MMM dd, yyyy");
+                    obj.ShipmentCountryId = Convert.ToInt32(dt.Rows[i]["ShipmentCountryId"]);
+                    obj.Country = dt.Rows[i]["Country"].ToString();
+                    obj.ClientId = Convert.ToInt32(dt.Rows[i]["ClientId"]);
+                    obj.IsInspection = Convert.ToInt32(dt.Rows[i]["IsInspection"]);
+                    obj.InspectionDetail = dt.Rows[i]["InspectionDetail"].ToString();
+                    obj.ArrivalDate = Convert.ToDateTime(dt.Rows[i]["ArrivalDate"]).ToString("MMM dd, yyyy");
+                    obj.DepartureDate = Convert.ToDateTime(dt.Rows[i]["DepartureDate"]).ToString("MMM dd, yyyy");
+                    obj.VesselName = dt.Rows[i]["VesselName"].ToString();
+                    obj.ContactName = dt.Rows[i]["ContactName"].ToString();
+                    obj.EmailHeading = dt.Rows[i]["EmailHeading"].ToString();
+                    obj.EmailSubject = dt.Rows[i]["EmailSubject"].ToString();
+                    obj.TemplateHtml = dt.Rows[i]["TemplateHtml"].ToString();
+                    obj.FromEmail = dt.Rows[i]["FromEmail"].ToString();
+                    obj.ToEmail = dt.Rows[i]["ToEmail"].ToString();
+                    obj.CCEmail = dt.Rows[i]["CCEmail"].ToString();
+                    obj.AttachementPath = VD + dt.Rows[i]["AttachementPath"].ToString();
+                    obj.DocumentTypeId = Convert.ToInt32(dt.Rows[i]["DocumentTypeId"]);
+                    obj.DocumentID = Convert.ToInt32(dt.Rows[i]["DocumentID"]);
+                    obj.EmailTemplateID = Convert.ToInt32(dt.Rows[i]["EmailTemplateID"]);
+                    obj.File = dt.Rows[i]["AttachementPath"].ToString();
+                    obj.CustomerID = Convert.ToInt32(dt.Rows[i]["CustomerID"]);
+                    obj.PurchaseID = Convert.ToInt32(dt.Rows[i]["PurchaseID"]);
+                    obj.SendEmailTemplateID = Convert.ToInt32(dt.Rows[i]["SendEmailTemplateID"]);
+
+                    /*    obj.TemplateHtml = obj.TemplateHtml.Replace("[Var_ContactName]", obj.ContactName);
+                    obj.TemplateHtml = obj.TemplateHtml.Replace("[Var_ChassisNo]", obj.ChassisNumber);
+                    obj.TemplateHtml = obj.TemplateHtml.Replace("[Var_VesselName]", obj.VesselName);
+                    obj.TemplateHtml = obj.TemplateHtml.Replace("[Var_EstimatedArrialTime]", obj.DepartureDate);
+                    obj.TemplateHtml = obj.TemplateHtml.Replace("[Var_PortOfLoading]", obj.DeparturePort);
+
+                    if (obj.IsInspection == 1)
+                    {
+                        obj.TemplateHtml = obj.TemplateHtml.Replace("[Var_IsInspectionRequired]", "Kindly note that this vehicle will require " + obj.InspectionDetail + " " + obj.Country);
+                    }
+                    else
+                    {
+                        obj.TemplateHtml = obj.TemplateHtml.Replace("[Var_IsInspectionRequired]", "");
+                    }
+    */
+                    objLst.Add(obj);
+                }
+            }
+            return PartialView(objLst);
+        }
+        public ActionResult _UnitShippingDetail(int PageNo, int PageSize, string ChassisNo, int DocumentStatusID, int IsShippmentApplicable, int ShippingVendorID
+            , string InvoiceNumber, int IsDepartureDate, DateTime? FromDate = null, DateTime? ToDate = null)
+        {
+            ChassisNo = (string.IsNullOrEmpty(ChassisNo) ? null : ChassisNo);
+            InvoiceNumber = (string.IsNullOrEmpty(InvoiceNumber) ? null : InvoiceNumber);
+
+            DataSet ds = new DataSet();
+            ShippingDetailResponse model = new ShippingDetailResponse();
+            ds = ShippingMethod.GetUnitShippingDetail(PageSize, PageNo, ChassisNo, DocumentStatusID, IsShippmentApplicable, ShippingVendorID, InvoiceNumber, IsDepartureDate
+                , FromDate, ToDate);
+
+            if (ds.Tables.Count > 1 && ds.Tables[0].Rows.Count > 0)
+            {
+                model.ShippingDetailViewModelList = EnumerableExtension.ToList<ShippingDetailViewModel>(ds.Tables[0]);
+                model.TotalRecord = Convert.ToInt32(ds.Tables[1].Rows[0]["TotalRecord"]);
+            }
+
+            model.PageSize = PageSize;
+            model.PageNo = PageNo;
+
+            if (ds.Tables.Count > 2 && ds.Tables[2].Rows.Count > 0)
+            {
+                model.MissingChassisNoList = EnumerableExtension.ToList<MissingChassisNo>(ds.Tables[2]);
+            }
+
+            return PartialView(model);
+        }
+
+        [HttpGet]
+        public void ShipmentBookingToExcel(string chassisNumbers, int documentStatusId , int IsShippmentApplicable, int ShippingVendorID
+            , string InvoiceNumber, int IsDepartureDate, DateTime? FromDate = null, DateTime? ToDate = null)
+        {
+            chassisNumbers = (string.IsNullOrEmpty(chassisNumbers) ? null : chassisNumbers);
+            InvoiceNumber = (string.IsNullOrEmpty(InvoiceNumber) ? null : InvoiceNumber);
+
+            DataSet ds = new DataSet();
+            ShippingDetailResponse model = new ShippingDetailResponse();
+            ds = ShippingMethod.GetUnitShippingDetail(null, null, chassisNumbers, documentStatusId, IsShippmentApplicable, ShippingVendorID, InvoiceNumber, IsDepartureDate
+                , FromDate, ToDate);
+
+            if (ds != null && ds.Tables[0] != null &&  ds.Tables[0].Rows.Count > 0)
+            {
+                Utilities.ExportToExcel(ds.Tables[0], "ShipmentBookingReportReport");
+            }
+        }
+
+
+
+        public ActionResult _ShippingBookingPopUp(int CustomerProductInvoiceID, int CustomerProductId, int ClientId, int ShippingVendorId, int VesselVoyageId, int DeparturePortId
+            , string DepartureDate, string ArrivalDate, string ArrivalPort, string InvoiceNumber, int PurchaseId, int ArrivalPortID, string DeparturePort, string ShippingVendor
+            , int DocumentStatusID)
+        {
+
+            DataSet ds = new DataSet();
+
+            ds = ShippingMethod.GetShippingSchedule(DeparturePortId, ArrivalPortID, CustomerProductInvoiceID);
+
+            ViewBag.CustomerProductInvoiceID = CustomerProductInvoiceID;
+            ViewBag.CustomerProductId = CustomerProductId;
+            ViewBag.ClientId = ClientId;
+            ViewBag.InvoiceNumber = InvoiceNumber;
+            ViewBag.PurchaseId = PurchaseId;
+            ViewBag.DocumentStatusID = DocumentStatusID;
+
+            if (ds.Tables.Count > 1 && ds.Tables[1].Rows.Count > 0)
+            {
+                ViewBag.ShippingVendorId = ds.Tables[1].Rows[0]["ShippingVendorId"];
+                ViewBag.VesselVoyageId = ds.Tables[1].Rows[0]["VesselVoyageID"];
+                ViewBag.DeparturePortId = ds.Tables[1].Rows[0]["DeparturePortId"];
+                ViewBag.DepartureDate = ds.Tables[1].Rows[0]["DepartureDate"];
+                ViewBag.ArrivalDate = ds.Tables[1].Rows[0]["ArrivalDate"];
+                ViewBag.ArrivalPort = ds.Tables[1].Rows[0]["ArrivalPort"];
+                ViewBag.ArrivalPortId = ds.Tables[1].Rows[0]["ArrivalPortId"];
+                ViewBag.DeparturePort = ds.Tables[1].Rows[0]["DeparturePort"];
+                ViewBag.ShippingVendor = ds.Tables[1].Rows[0]["ShippingVendor"];
+                ViewBag.VoyageNo = ds.Tables[1].Rows[0]["VoyageNo"];
+                ViewBag.VesselName = ds.Tables[1].Rows[0]["VesselName"];
+                ViewBag.BookingNo = ds.Tables[1].Rows[0]["BookingNo"];
+                ViewBag.BookingDocumentPath =(!String.IsNullOrEmpty(ds.Tables[1].Rows[0]["BookingDocumentPath"].ToString()) 
+                    ? VD + ds.Tables[1].Rows[0]["BookingDocumentPath"].ToString() : null);
+            }
+            ViewBag.ShippingVendorList = OGMethods.ShippingVendorList();
+            ViewBag.Vessel = ShippingMethod.OG_VesselVoyage();
+            ViewBag.ListPort = OGMethods.GetPortList();
+
+            return PartialView();
+        }
+        public void AddShipmentDetail(int CustomerProductInvoiceId, int CustomerProductId, int ClientId, int ShippingVendorId, int? VesselVoyageID, int DeparturePortId
+            , DateTime? DepartureDate, DateTime? ArrivalDate, int ArrivalPortId, int StatusID, int PurchaseID, string BookingNo)
+        {
+
+            ShippingMethod.InsertBookingDetail(CustomerProductInvoiceId, CustomerProductId, ClientId, ShippingVendorId, VesselVoyageID, DeparturePortId, DepartureDate, ArrivalDate
+                , ArrivalPortId, StatusID, PurchaseID, BookingNo);
+        }
+
+        public ActionResult _ConsigneeDetail(int CustomerProductInvoiceId)
+        {
+            DataSet ds = new DataSet();
+
+            ds = ShippingMethod.GetConsigneeDetail(CustomerProductInvoiceId);
+
+            List<ConsigneeViewModel> objConsigneeVM = new List<ConsigneeViewModel>();
+
+            objConsigneeVM = EnumerableExtension.ToList<ConsigneeViewModel>(ds.Tables[0]);
+
+            return PartialView(objConsigneeVM);
+        }
+
+        public ActionResult _RemarksPopUp(int CustomerProductInvoiceId = 0, int CustomerProductId = 0, int StatusId = 0)
+        {
+            List<RemarksVM> model = new List<RemarksVM>();
+            ViewBag.CustomerProductInvoiceId = CustomerProductInvoiceId;
+            ViewBag.CustomerProductId = CustomerProductId;
+            ViewBag.StatusId = StatusId;
+
+            if (CustomerProductInvoiceId > 0)
+            {
+                model = ShipmentReportMethods.GetRemarks(CustomerProductInvoiceId);
+
+            }
+            return PartialView("_RemarksPopUp", model);
+        }
+
+        [ValidateInput(false)]
+        public void InsertEmailTemplate(int ID, int ProductDocument = 0, string EmailBody = "", string FromEmail = null, string ToEmail = null, int SentEmailTemplateID = 0, int ClientId = 999, string CCEmail = null, string EmailSubject = null, int? TemplateID = null)
+        {
+            TransportMethods.InsertEmailTemplate(ID, ProductDocument, EmailBody, ClientId, FromEmail, ToEmail, SentEmailTemplateID, CCEmail, EmailSubject, TemplateID);
+        }
+        public string GetShippingInvoiceDetailForDocGeneration(int CustomerProductInvoiceId)
+        {
+
+            DataSet ds = new DataSet();
+            DataTable dt = new DataTable();
+            string DefaultDocPath = "";
+
+            string FileSavePath = "";
+            string FileSavePathWithoutVD = "";
+            string ZipURL = "";
+            string ExportCertificatePath = "";
+            string FileName = "";
+            string ZIPPath = "";
+            string DefaultDocPathExt = "";
+            int DocumentTypeID = 0;
+            int ClientID = 0;
+            int CustomerID = 0;
+            int CustomerProductId = 0;
+            int SentEmailTemplateID = 0;
+            int PurchaseId = 0;
+            string InvoiceNumber = "";
+            string FinalPath = "";
+            string DepartureDate = "";
+            FileInfo objDocLink;
+
+            try
+            {
+
+
+                ds = ShippingMethod.GetShippingInvoiceDetailForDocGeneration(CustomerProductInvoiceId);
+
+                if (ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
+                {
+                    dt = ds.Tables[0];
+                    DocumentTypeID = Convert.ToInt32(dt.Rows[0]["DocumentTypeID"]);
+                    ClientID = Convert.ToInt32(dt.Rows[0]["ClientId"]);
+                    InvoiceNumber = dt.Rows[0]["InvoiceNumber"].ToString();
+                    CustomerID = Convert.ToInt32(dt.Rows[0]["CustomerID"]);
+                    CustomerProductId = Convert.ToInt32(dt.Rows[0]["CustomerProductId"]);
+                    SentEmailTemplateID = Convert.ToInt32(dt.Rows[0]["SentEmailTemplateID"]);
+                    PurchaseId = Convert.ToInt32(dt.Rows[0]["PurchaseId"]);
+
+                    DeleteExistingFile(CustomerProductInvoiceId, DocumentTypeID, ClientID, InvoiceNumber);
+                    FinalPath = Server.MapPath(FilePath(ClientID.ToString(), SubPath, InvoiceNumber.ToString(), DocumentTypeID.ToString()));
+
+                    for (int i = 0; i < dt.Rows.Count; i++)
+                    {
+                        DefaultDocPath = Server.MapPath(dt.Rows[i]["AttachementPath"].ToString());
+                        FileSavePath = Server.MapPath(FilePath(dt.Rows[i]["ClientId"].ToString(), SubPath, dt.Rows[i]["InvoiceNumber"].ToString(), dt.Rows[i]["DocumentTypeID"].ToString()));
+                        FileSavePathWithoutVD = FilePath(dt.Rows[i]["ClientId"].ToString(), SubPath, dt.Rows[i]["InvoiceNumber"].ToString(), dt.Rows[i]["DocumentTypeID"].ToString());
+                        ExportCertificatePath = Server.MapPath(dt.Rows[i]["ExportCertificatePath"].ToString());
+                        DefaultDocPathExt = Path.GetExtension(DefaultDocPath);
+                        DepartureDate = (String.IsNullOrEmpty(dt.Rows[i]["DepartureDate"].ToString()) ? "" : Convert.ToDateTime(dt.Rows[i]["DepartureDate"]).ToString("MMM d,yyyy"));
+
+                        if (!System.IO.Directory.Exists(FileSavePath))
+                            System.IO.Directory.CreateDirectory(FileSavePath);
+
+                        FileName = @"\" + Path.GetFileNameWithoutExtension(DefaultDocPath) + DateTime.Now.Ticks + DefaultDocPathExt;
+                        FileSavePath = FileSavePath + FileName;
+                        FileSavePathWithoutVD = FileSavePathWithoutVD + FileName;
+                        System.IO.File.Copy(DefaultDocPath, FileSavePath);
+
+                        if (!GenerateExcel(FileSavePath, dt.Rows[i]["ExporterName"].ToString(), dt.Rows[i]["ExporterAddress"].ToString(), dt.Rows[i]["ExporterPhone"].ToString()
+                        , dt.Rows[i]["CustomerName"].ToString(), dt.Rows[i]["CustomerAddress"].ToString(), dt.Rows[i]["CustomerCountry"].ToString(), dt.Rows[i]["CustomerPhone"].ToString()
+                        , dt.Rows[i]["VesselName"].ToString(), dt.Rows[i]["YardLocation"].ToString(), dt.Rows[i]["MakeName"].ToString(), dt.Rows[i]["ModelName"].ToString(), dt.Rows[i]["ChassisNumber"].ToString()
+                        , dt.Rows[i]["ModelYear"].ToString(), dt.Rows[i]["Length"].ToString(), dt.Rows[i]["ExporterFax"].ToString(), dt.Rows[i]["NotifierName"].ToString()
+                            , dt.Rows[i]["NotifierAddress"].ToString(), dt.Rows[i]["NotifierCountry"].ToString(), dt.Rows[i]["NotifierContact"].ToString(), dt.Rows[i]["DeparturePort"].ToString()
+                            , dt.Rows[i]["Height"].ToString(), dt.Rows[i]["Width"].ToString(), dt.Rows[i]["M3"].ToString(), dt.Rows[i]["Freight"].ToString(), dt.Rows[i]["FOBInJapenese"].ToString()
+                            , DepartureDate, dt.Rows[i]["InvoiceNumber"].ToString(), dt.Rows[i]["VoyageNo"].ToString(), dt.Rows[i]["AlterationDetail"].ToString(), dt.Rows[i]["AlterationStatus"].ToString()
+                            , dt.Rows[i]["InspectionDetail"].ToString(), dt.Rows[i]["InspectionStatus"].ToString(), dt.Rows[i]["Mileage"].ToString(), dt.Rows[i]["ArrivalCountry"].ToString()
+                            , dt.Rows[i]["ArrivalPort"].ToString(), dt.Rows[i]["DepartureCounty"].ToString(), Convert.ToDateTime(dt.Rows[i]["PurchaseDate"]).ToString("MMM dd, yyyy")
+                            , dt.Rows[i]["Power"].ToString(), dt.Rows[i]["CnFAmount"].ToString(), dt.Rows[i]["ArrivalPortCountry"].ToString(), dt.Rows[i]["Weight"].ToString()
+                            , dt.Rows[i]["Terminal"].ToString()))
+                        {
+
+                            return "Error during generating document.";
+                        }
+                    }
+                    FileInfo OBJExportCert = new FileInfo(ExportCertificatePath);
+
+                    if (!OBJExportCert.Exists)
+                    {
+                        return "Export Certificate is not exist";
+                    }
+
+                    string[] filePaths = Directory.GetFiles(FinalPath);
+
+                    using (Ionic.Zip.ZipFile zipSave = new Ionic.Zip.ZipFile())
+                    {
+                        zipSave.AlternateEncodingUsage = ZipOption.AsNecessary;
+
+                        zipSave.AddFile(ExportCertificatePath, "");
+
+                        foreach (string filePath in filePaths)
+                        {
+                            zipSave.AddFile(filePath, "");
+                        }
+
+                        var Downloadpath = FilePath(ClientID.ToString(), SubPath, InvoiceNumber.ToString(), DocumentTypeID.ToString());
+
+                        ZIPPath = Path.Combine(Server.MapPath(Downloadpath), InvoiceNumber.ToString() + ".zip");
+
+                        if (System.IO.File.Exists(ZIPPath))
+                            System.IO.File.Delete(ZIPPath);
+
+                        zipSave.Save(ZIPPath);
+                        ZipURL = "/" + Downloadpath + "/" + InvoiceNumber.ToString() + ".zip";
+                    }
+                    objDocLink = new FileInfo(Server.MapPath(ZipURL));
+
+                    TransportMethods.InsertDocument(CustomerID, CustomerProductId, CustomerProductInvoiceId, DocumentTypeID, Path.GetFileNameWithoutExtension(ZipURL), ZipURL.Replace(@"\", "/"), objDocLink.Length
+                       , Path.GetExtension(ZipURL), AuthBase.UserId, ClientID, 0, SentEmailTemplateID, PurchaseId);
+                }
+                else
+                {
+                    return "No record found.";
+                }
+                return "";
+            }
+            catch (Exception ex)
+            {
+                return ex.Message;
+            }
+        }
+
+        private bool GenerateExcel(string FilePath, string Shipper, string AddressLine, string Phone, string CustomerName, string CustomerAddress, string Country, string CustomerPhone, string Vessel
+             , string YardLocation, string Make, string Model, string Chassis, string Year, string Length, string Fax, string NotifierName, string NotifierAddress
+           , string NotifierCountry, string NotifierContactNo, string DeparturePort, string height, string width, string Dimension, string Freight, string FOBPrice,
+               string DepartureDate, string InvoiceNo, string VoyageNo, string Alteration, string AlterationStatus, string Inspection, string InspectionStatus, string Mileage
+            , string ArrivalCountry, string ArrivalPort, string DepartureCountry, string PurchaseDate, string Power, string CNFInDollar, string ArrivalPortCountry
+            , string Weight, string Terminal)
+        {
+            FileInfo file = new FileInfo(FilePath);
+
+            if (file.Exists)
+            {
+                try
+                {
+                    if (file.Extension.ToLower() == ".xls" || file.Extension.ToLower() == ".xlsx")
+                    {
+                        using (ExcelPackage excelPackage = new ExcelPackage(file))
+                        {
+                            ExcelWorksheets ws = excelPackage.Workbook.Worksheets;
+
+                            for (int i = 0; i < ws.Count; i++)
+                            {
+                                ExcelWorksheet objWs = excelPackage.Workbook.Worksheets.ElementAt(i);
+                                var dimension = objWs.Dimension;
+
+                                var cells = from row in Enumerable.Range(dimension.Start.Row, dimension.End.Row)
+                                            from column in Enumerable.Range(dimension.Start.Column, dimension.End.Column)
+                                            select objWs.Cells[row, column];
+                                try
+                                {
+                                    foreach (var excelCell in cells)
+                                    {
+                                        if (excelCell.Value != null)
+                                        {
+                                            try
+                                            {
+                                                if (excelCell.Value.ToString().Equals("Var_Shipper")) { excelCell.Value = Shipper; }
+                                                else if (excelCell.Value.ToString().Equals("Var_AddressLine")) { excelCell.Value = AddressLine; }
+                                                else if (excelCell.Value.ToString().Equals("Var_Phone")) { excelCell.Value = Phone; }
+                                                else if (excelCell.Value.ToString().Equals("Var_CustomerName")) { excelCell.Value = CustomerName; }
+                                                else if (excelCell.Value.ToString().Equals("Var_CustomerAddress")) { excelCell.Value = CustomerAddress; }
+                                                else if (excelCell.Value.ToString().Equals("Var_Country")) { excelCell.Value = Country; }
+                                                else if (excelCell.Value.ToString().Equals("Var_CustomerPhone")) { excelCell.Value = CustomerPhone; }
+                                                else if (excelCell.Value.ToString().Equals("Var_Vessel")) { excelCell.Value = Vessel; }
+                                                else if (excelCell.Value.ToString().Equals("Var_YardLocation")) { excelCell.Value = YardLocation; }
+                                                else if (excelCell.Value.ToString().Equals("Var_FinalDestination")) { excelCell.Value = ArrivalPort + ", " + ArrivalCountry; }
+                                                else if (excelCell.Value.ToString().Equals("Var_Make")) { excelCell.Value = Make; }
+                                                else if (excelCell.Value.ToString().Equals("Var_Model")) { excelCell.Value = Model; }
+                                                else if (excelCell.Value.ToString().Equals("Var_Chassis")) { excelCell.Value = Chassis; }
+                                                else if (excelCell.Value.ToString().Equals("Var_Year")) { excelCell.Value = Year; }
+                                                else if (excelCell.Value.ToString().Equals("Var_Length")) { excelCell.Value = Length; }
+                                                else if (excelCell.Value.ToString().Equals("Var_width")) { excelCell.Value = width; }
+                                                else if (excelCell.Value.ToString().Equals("Var_height")) { excelCell.Value = height; }
+                                                else if (excelCell.Value.ToString().Equals("Var_Dimension")) { excelCell.Value = Dimension; }
+                                                else if (excelCell.Value.ToString().Equals("Var_Fax")) { excelCell.Value = Fax; }
+                                                else if (excelCell.Value.ToString().Equals("Var_NotifierName")) { excelCell.Value = NotifierName; }
+                                                else if (excelCell.Value.ToString().Equals("Var_NotifierAddress")) { excelCell.Value = NotifierAddress; }
+                                                else if (excelCell.Value.ToString().Equals("Var_NotifierCountry")) { excelCell.Value = NotifierCountry; }
+                                                else if (excelCell.Value.ToString().Equals("Var_NotifierContactNo")) { excelCell.Value = NotifierContactNo; }
+                                                else if (excelCell.Value.ToString().Equals("Var_DischargePort")) { excelCell.Value = DeparturePort; }
+                                                else if (excelCell.Value.ToString().Equals("Var_FOBPrice")) { excelCell.Value = "¥ " + FOBPrice; }
+                                                else if (excelCell.Value.ToString().Equals("Var_Freight")) { excelCell.Value = Freight; }
+                                                else if (excelCell.Value.ToString().Equals("Var_DepartureDate")) { excelCell.Value = DepartureDate; }
+                                                else if (excelCell.Value.ToString().Equals("Var_VehicleName")) { excelCell.Value = Make + " " + Model; }
+                                                else if (excelCell.Value.ToString().Equals("Var_InvoiceNo")) { excelCell.Value = InvoiceNo; }
+                                                else if (excelCell.Value.ToString().Equals("Var_Mileage")) { excelCell.Value = Mileage; }
+                                                else if (excelCell.Value.ToString().Equals("Var_DestinationCountry")) { excelCell.Value = ArrivalCountry; }
+                                                else if (excelCell.Value.ToString().Equals("Var_VehicleNameWithModel")) { excelCell.Value = Make + " " + Model + " " + Year; }
+                                                else if (excelCell.Value.ToString().Equals("Var_PurDate")) { excelCell.Value = PurchaseDate; }
+                                                else if (excelCell.Value.ToString().Equals("Var_Power")) { excelCell.Value = Power; }
+                                                else if (excelCell.Value.ToString().Equals("Var_ArrivalPort")) { excelCell.Value = ArrivalPort; }
+                                                else if (excelCell.Value.ToString().Equals("Var_CNFPrice")) { excelCell.Value = CNFInDollar; }
+                                                else if (excelCell.Value.ToString().Equals("Var_ArrivalPortCountry")) { excelCell.Value = ArrivalPortCountry; }
+                                                else if (excelCell.Value.ToString().Equals("Var_KGS")) { excelCell.Value = Weight; }
+
+                                            }
+                                            catch (Exception)
+                                            {
+                                                return false;
+                                            }
+                                        }
+                                    }
+                                }
+                                catch (Exception a)
+                                {
+                                    return false;
+                                }
+                            }
+                            excelPackage.Save();
+                            return true;
+                        }
+                    }
+                    else if (file.Extension.ToLower() == ".doc" || file.Extension.ToLower() == ".docx")
+                    {
+                        using (DocX docX = DocX.Load(FilePath))
+                        {
+                            docX.ReplaceText("<date>", DateTime.Now.ToShortDateString());
+                            docX.ReplaceText("<ShipperName>", Shipper);
+                            docX.ReplaceText("<ShipperPhone>", Phone);
+                            docX.ReplaceText("<ShipperAddress>", AddressLine);
+                            docX.ReplaceText("<ShipperFax>", Fax);
+                            docX.ReplaceText("<ConsigneeName>", CustomerName);
+                            docX.ReplaceText("<ConsigneeAddress>", CustomerAddress);
+                            docX.ReplaceText("<ConsigneePhone>", CustomerPhone);
+                            docX.ReplaceText("<NotifierName>", NotifierName);
+                            docX.ReplaceText("<NotifierAddress>", NotifierAddress);
+                            docX.ReplaceText("<NotifierPhone>", NotifierContactNo);
+                            docX.ReplaceText("<VesselName>", Vessel + " (" + VoyageNo + ")");
+                            docX.ReplaceText("<ReceivedYard>", YardLocation);
+                            docX.ReplaceText("<PortArrival>", ArrivalPort);
+                            docX.ReplaceText("<FinalDestination>", ArrivalCountry);
+                            docX.ReplaceText("<Make>", Make);
+                            docX.ReplaceText("<Model>", Model);
+                            docX.ReplaceText("<Year>", Year);
+                            docX.ReplaceText("<Chassis>", Chassis);
+                            docX.ReplaceText("<EC-GrossWt>", Weight);
+                            docX.ReplaceText("<EC-inM3>", Dimension);
+                            docX.ReplaceText("<FREIGHT>", Freight);
+                            docX.ReplaceText("<CNF>", CNFInDollar);
+                            docX.ReplaceText("<Length>", Length);
+                            docX.ReplaceText("<Width>", width);
+                            docX.ReplaceText("<Height>", height);
+                            docX.ReplaceText("<CountryDischarge>", ArrivalPortCountry);
+                            docX.ReplaceText("<Alteration>", Alteration);
+                            docX.ReplaceText("<AlterationStatus>", AlterationStatus);
+                            docX.ReplaceText("<Inspection>", Inspection);
+                            docX.ReplaceText("<InspectionStatus>", InspectionStatus);
+                            docX.ReplaceText("<Terminal>", Terminal);
+
+                            docX.SaveAs(FilePath);
+                            return true;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        public void DeleteExistingFile(int CustomerProductInvoiceId, int DocumentType, int ClientId, string InvoiceId)
+        {
+
+            string virtualpath = FilePath(ClientId.ToString(), SubPath, InvoiceId, DocumentType.ToString());
+            string ExecutionPath = Server.MapPath(virtualpath + @"\");
+
+            if (Directory.Exists(ExecutionPath))
+            {
+                Directory.Delete(Server.MapPath(virtualpath), true);
+            }
+        }
+        public string UploadFile(string DocDetail)
+        {
+            //FileInfo objOldFile = new FileInfo( p);
+
+            string SavePath = "";
+            string URL = "";
+            string RootDirectory = "";
+            string Extension = "";
+            string FileNameWithOutExtension = "";
+            string DirectoryName = "";
+            string PathWithRootDirectory = "";
+            string SubPath = ConfigurationManager.AppSettings["SubPath"];
+            try
+            {
+                if (!string.IsNullOrEmpty(DocDetail))
+                {
+                    var DocumentDetail = JsonConvert.DeserializeObject<DocumentViewModel>(DocDetail);
+
+                    HttpPostedFile file = System.Web.HttpContext.Current.Request.Files[0];
+
+                    if (DocumentDetail.DocumentTypeId != Constants.DocumentType.ShipmentOrderFile.GetHashCode())
+                    {
+                        DirectoryName = "/EmailAttachements/";
+                    }
+                    else
+                    {
+                        DirectoryName = FilePath(DocumentDetail.ClientId.ToString(), SubPath, DocumentDetail.InvoiceNumber.ToString(), DocumentDetail.DocumentTypeId.ToString());
+                    }
+                    FileNameWithOutExtension = Path.GetFileNameWithoutExtension(file.FileName) + DateTime.Now.Ticks;
+                    Extension = Path.GetExtension(file.FileName);
+                    RootDirectory = Path.GetFullPath(Path.Combine(System.Web.HttpContext.Current.Server.MapPath("/")));
+                    URL = Path.Combine(DirectoryName, FileNameWithOutExtension + Extension);
+                    PathWithRootDirectory = RootDirectory + DirectoryName;
+
+                    if (!System.IO.Directory.Exists(PathWithRootDirectory))
+                        System.IO.Directory.CreateDirectory(PathWithRootDirectory);
+
+                    SavePath = Path.Combine(PathWithRootDirectory, FileNameWithOutExtension + Extension);
+
+                    FileInfo objNewFile = new FileInfo(SavePath);
+                    file.SaveAs(SavePath);
+
+
+                    if (DocumentDetail.DocumentTypeId == Constants.DocumentType.ShipmentOrderFile.GetHashCode())
+                    {
+                        DocumentMethod.InsertProductDocument(DocumentDetail.CustomerProductInvoiceId, DocumentDetail.DocumentTypeId, Path.GetFileNameWithoutExtension(SavePath), URL, Convert.ToInt32(objNewFile.Length)
+                            , Path.GetExtension(SavePath), DocumentDetail.ClientId);
+                    }
+                    /*   TransportMethods.InsertDocument(DocumentDetail.CustomerId, DocumentDetail.CustomerProductId, DocumentDetail.CustomerProductInvoiceId, DocumentDetail.DocumentTypeId, Path.GetFileNameWithoutExtension(SavePath)
+                           , URL.Replace(@"\", "/"), objNewFile.Length, Extension, AuthBase.UserId, DocumentDetail.ClientId, 0);*/
+                }
+
+                return URL;
+            }
+            catch (Exception ex)
+            {
+                return "";
+            }
+        }
+
+        private string FilePath(string ClientID, string SubPath, string InvoiceNumber, string DocumentTypeID)
+        {
+            return @"\" + ClientID + SubPath + InvoiceNumber + @"\" + DocumentTypeID;
+        }
+
+        [HttpGet]
+        public void InsertRemarks(RemarksVM model)
+        {
+
+            ShipmentReportMethods.InsertRemarks(model);
+        }
+        public bool DeleteEmailAttachement(string path)
+        {
+
+            string RootDirectory = Path.GetFullPath(Path.Combine(System.Web.HttpContext.Current.Server.MapPath("/")));
+            path = RootDirectory + path;
+
+            FileInfo objFileInfo = new FileInfo(path);
+            objFileInfo.Delete();
+
+            return true;
+        }
+        #endregion
+
+        #region parse vesselvoyage detail
+        [HttpGet]
+        public ActionResult HTMLParse()
+        {
+
+            return View();
+        }
+        [HttpPost]
+        [ValidateInput(false)]
+        public string HTMLParse(string pagesource)
+        {
+            string data = GetHtmlData(pagesource);
+            return data;
+        }
+        public static string GetHtmlData(string page)
+        {
+            List<string> tableContents = GetContents(page, table_pattern);
+            List<string> tablerows = GetContents(tableContents[0], tr_pattern);
+            List<string> tableheaders = GetContents(tablerows[0], td_pattern);
+            tablerows.RemoveAt(0);
+            DataTable ParsedTable = new DataTable();
+            ParsedTable.Columns.Add("CompanyName", typeof(string));
+            ParsedTable.Columns.Add("VesselName", typeof(string));
+            ParsedTable.Columns.Add("VoyageNo", typeof(string));
+            ParsedTable.Columns.Add("PortName", typeof(string));
+            ParsedTable.Columns.Add("ArrivalDate", typeof(string));
+            foreach (string tr in tablerows)
+            {
+                List<string> CurrRowColumns = new List<string>();
+                CurrRowColumns = GetContents(tr, td_pattern);
+                string[] vndShipMerged = Regex.Split(CurrRowColumns[0], "<td>");
+                CurrRowColumns.RemoveAt(0);
+                CurrRowColumns.Insert(0, vndShipMerged[1]);
+                CurrRowColumns.Insert(1, vndShipMerged[2]);
+                for (int i = 3; i < CurrRowColumns.Count; i++)
+                {
+                    string date = DateFormatter(CurrRowColumns[i].Replace("<td>", "").Replace("</td>", ""));
+                    if (date != "-")
+                    {
+                        DataRow dr = ParsedTable.NewRow();
+
+                        dr["CompanyName"] = CurrRowColumns[0].Replace("<td>", "").Replace("</td>", "");
+                        dr["VesselName"] = CurrRowColumns[1].Replace("<td>", "").Replace("</td>", "");
+                        dr["VoyageNo"] = CurrRowColumns[2].Replace("<td>", "").Replace("</td>", "");
+                        dr["PortName"] = tableheaders[i].Replace("<td>", "").Replace("</td>", "");
+                        dr["ArrivalDate"] = date == "-" ? DateTime.Now.Date.ToString() : date;
+                        ParsedTable.Rows.Add(dr);
+                    }
+                }
+            }
+            ShippingMethod.UplaodVesselDetail(ParsedTable);
+            return page;
+        }
+        private static string DateFormatter(string Date)
+        {
+            string day = "";
+            string month = "";
+            int monthNum = 0;
+            int year = 0;
+            string date = "";
+
+
+
+            if (Date.Length > 2)
+            {
+                string[] FormatDate = Regex.Split(Date, " ");
+                day = Regex.Replace(FormatDate[1], "[^0-9.]", "");
+                month = FormatDate[0];
+                monthNum = DateTime.ParseExact(month, "MMMM", System.Globalization.CultureInfo.CurrentCulture).Month;
+                year = DateTime.Now.Year;
+
+                int diff = monthNum - DateTime.Now.Date.Month;
+                if (diff < -3)
+                    year += 1;
+                if (diff > 3)
+                    year -= 1;
+                date = year + "-" + monthNum + "-" + day;
+            }
+            else
+            {
+                date = "-";
+            }
+            return date;
+        }
+        private static List<string> GetContents(string input, string pattern)
+        {
+            MatchCollection matches = Regex.Matches(input, pattern, RegexOptions.Singleline);
+            List<string> contents = new List<string>();
+            foreach (Match match in matches)
+            {
+                contents.Add(match.Value);
+            }
+            return contents;
+        }
+        #endregion
+
+        #region vessel schedule report
+
+
+        [HttpGet]
+        public JsonResult GetPortRegionWise(int region)
+        {
+            List<SelectListItem> port = OGMethods.GetPortList(region);
+            return Json(port, JsonRequestBehavior.AllowGet);
+        }
+
+        [HttpGet]
+        public JsonResult GetDeparturePort(int region)
+        {
+            List<SelectListItem> port = OGMethods.GetDeparturePortList();
+            return Json(port, JsonRequestBehavior.AllowGet);
+        }
+
+
+        public ActionResult VesselScheduleReport()
+        {
+            ViewBag.VesselList = OGMethods.GetVessels();
+            ViewBag.Region = OGMethods.SellingRegionList();
+            ViewBag.DeparturePort = OGMethods.GetDeparturePortList();
+            ViewBag.Port = OGMethods.GetPortList();
+            return View();
+        }
+
+        [HttpGet]
+        public ActionResult _VesselScheduleReport(int? RegionId, int? DeparturePortId, int? ArrivalPortId, DateTime? DepartureDateFrom, DateTime? DepartureDateTo, DateTime? ArrivalDateFrom, DateTime? ArrivalDateTo, int? VesselId)
+        {
+            try
+            {
+                ViewBag.Region = OGMethods.SellingRegionList();
+                ViewBag.Port = OGMethods.GetPortList();
+                ViewBag.DeparturePort = OGMethods.GetDeparturePortList();
+
+                ViewData["ScheduleDetail"] = ShippingMethod.GetVesselScheduleDetail(RegionId, DeparturePortId, ArrivalPortId, DepartureDateFrom, DepartureDateTo, ArrivalDateFrom, ArrivalDateTo, VesselId);
+                ViewData.Model = ShippingMethod.GetVesselScheduleDetail(RegionId, DeparturePortId, ArrivalPortId, DepartureDateFrom, DepartureDateTo, ArrivalDateFrom, ArrivalDateTo, VesselId);
+                return PartialView();
+            }
+            catch (Exception ex)
+            {
+                return PartialView();
+            }
+        }
+        #endregion
+    }
+}
+
+--------------------------------
+
+TransportController.cs
+
+
+
+using JTJapan.Core;
+using JTJapan.Core.AdminArea;
+using JTJapan.Core.AdminArea.ViewModel;
+using JTJapan.Core.Helper;
+using System;
+using System.Collections.Generic;
+using System.Configuration;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+using SecureQueryStringLib;
+using JTJapan.Core.Helper;
+using Automobile.Admin.Models;
+using Newtonsoft.Json;
+using System.IO;
+using System.Web.Services;
+
+namespace Automobile.Admin.Controllers
+{
+    public class TransportController : BaseController
+    {
+        //
+        // GET: /Transportation/
+
+        string VD = ConfigurationManager.AppSettings["DocPath"];
+        public ActionResult Index()
+        {
+            return View();
+        }
+
+
+        public ActionResult Transportation(int TransportationStatusCode = 100, int PageSize = 25, int PageCount = 1, int IsUnmarkedVendor = 1, string ChassisNumber = null)
+        {
+
+
+            ViewBag.TransportationStatusCode = TransportationStatusCode;
+
+            if (TransportationStatusCode == Constants.OG_UnitTransportationStatus.BIdWonEmailPending.GetHashCode())
+            {
+                ViewBag.UnitLocation = OGMethods.GetUnitLocationList();
+                ViewBag.TransportVendor = OGMethods.GetOGTransportVendor();
+                ViewBag.ShipmentType = OGMethods.GetOGShipmentType();
+            }
+
+            ChassisNumber = (string.IsNullOrEmpty(ChassisNumber) ? null : ChassisNumber);
+
+            UnitTransportationResponseModel response = GetTransportaitionData(TransportationStatusCode, PageSize, PageCount, IsUnmarkedVendor, ChassisNumber);
+
+            ViewBag.ChassisNumber = ChassisNumber;
+
+            return View(response);
+        }
+
+        public ActionResult SendEmail()
+        {
+            return View();
+        }
+
+        public ActionResult AcknowledgementReport()
+        {
+            return View();
+        }
+        public ActionResult _TransportationVendorCount(int TransportationStatusCode = 100)
+        {
+            List<TransportaionStatusCount> model = new List<TransportaionStatusCount>();
+            model = TransportMethods.GetUnitTransportationStatusWiseCount(TransportationStatusCode);
+
+            return PartialView(model);
+        }
+
+        public ActionResult _TransportReport(int TransportationStatusCode = 100, int PageSize = 25, int PageCount = 1, int IsUnmarkedVendor = 0, string ChassisNumber = null, int TransportVendorID = 4)
+        {
+            DataSet ds = new DataSet();
+
+            ViewBag.TransportationStatusCode = TransportationStatusCode;
+            ViewBag.TransportVendorID = TransportVendorID;
+
+            ChassisNumber = (string.IsNullOrEmpty(ChassisNumber) ? null : ChassisNumber);
+
+            UnitTransportationResponseModel response = GetTransportaitionData(TransportationStatusCode, PageSize, PageCount, IsUnmarkedVendor, ChassisNumber, TransportVendorID);
+            ViewBag.ChassisNumber = ChassisNumber;
+
+            return PartialView(response);
+        }
+        public ActionResult _EmailPopup(int TransportationStatusCode = 100, int CustomerProductInvoiceId = 0, int TransportVendorID = 0)
+        {
+            ViewBag.CustomerProductInvoiceId = CustomerProductInvoiceId;
+            ViewBag.TransportVendorID = TransportVendorID;
+            List<EmailViewModel> model = new List<EmailViewModel>();
+            List<EmailViewModel> response = new List<EmailViewModel>();
+
+            string Link = "";
+            int TypeID = 0;
+
+            SecureQueryString ObjSecureQueryString = new SecureQueryString();
+
+            model = TransportMethods.GetEmailForPreview(TransportationStatusCode, CustomerProductInvoiceId);
+
+            for (int i = 0; i < model.Count; i++)
+            {
+                EmailViewModel Obj = new EmailViewModel();
+
+                if (model[i].DocumentTypeId.ToString() == Constants.DocumentType.TransportVendorAttachment.GetHashCode().ToString())
+                    TypeID = 1;
+                else if (model[i].DocumentTypeId.ToString() == Constants.DocumentType.YardVendorAttachment.GetHashCode().ToString())
+                    TypeID = 2;
+
+                Link = ObjSecureQueryString.encrypt("id=" + CustomerProductInvoiceId) + "&type=" + TypeID;
+
+                Obj.ChassisNo = model[i].ChassisNo;
+                Obj.ClientID = model[i].ClientID;
+                Obj.ClientName = model[i].ClientName;
+                Obj.CRMClientCode = model[i].CRMClientCode;
+                Obj.CRMClientID = model[i].CRMClientID;
+                Obj.CRMClientPassword = model[i].CRMClientPassword;
+                Obj.CustomerID = model[i].CustomerID;
+                Obj.DocumentTypeId = model[i].DocumentTypeId;
+                Obj.EmailBody = model[i].EmailBody.Replace("[VAR_Parameter]", Link);
+                Obj.EmailHeading = model[i].EmailHeading;
+                Obj.EmailSubject = model[i].EmailSubject;
+                Obj.FromEmailAddress = model[i].FromEmailAddress;
+                Obj.InvoiceNumber = model[i].InvoiceNumber;
+                Obj.SentEmailTemplateID = model[i].SentEmailTemplateID;
+                Obj.ToEmailAddress = model[i].ToEmailAddress;
+                Obj.TransportVendor = model[i].TransportVendor;
+                Obj.AttachmentPath = VD + model[i].AttachmentPath;
+                Obj.DocumentID = model[i].DocumentID;
+                Obj.CCEmail = model[i].CCEmail;
+                Obj.CCEmail = model[i].CCEmail;
+                Obj.File = model[i].AttachmentPath;
+                Obj.CustomerProductID = model[i].CustomerProductID;
+                Obj.CustomerProductInvoiceid = model[i].CustomerProductInvoiceid;
+                Obj.PurchaseID = model[i].PurchaseID;
+
+                response.Add(Obj);
+            }
+
+            return PartialView(response);
+        }
+
+        public void UpdateTransportation(int ID, int StatusId, int ClientId = 999, int UnitLocationId = 0, int TransportVendorId = 0, int ShipmentTypeId = 0)
+        {
+            TransportMethods.UpdateCustomerProductInvoiceTransportation(ID, StatusId, ClientId, UnitLocationId, TransportVendorId, ShipmentTypeId);
+        }
+
+
+        [HttpGet]
+        public void UpdateTransportationStatus(int ID, int StatusId, int ProductDocument = 0, string FromEmail = null, string ToEmail = null, int SentEmailTemplateID = 0)
+        {
+            TransportMethods.UpdateTransportationStatusCPI(ID, StatusId, AuthBase.ClientId, AuthBase.UserId);
+        }
+
+        [ValidateInput(false)]
+        public void InsertEmailTemplate(int ID, int ProductDocument = 0, string EmailBody = "", string FromEmail = null, string ToEmail = null, int SentEmailTemplateID = 0, int ClientId = 999, string CCEmail = null, string EmailSubject = null
+            , int? TemplateID = null, string AttachementPath = null, int? DocumentTypeID = null)
+        {
+            TransportMethods.InsertEmailTemplate(ID, ProductDocument, EmailBody, ClientId, FromEmail, ToEmail, SentEmailTemplateID, CCEmail, EmailSubject, TemplateID, AttachementPath, DocumentTypeID);
+        }
+
+        public UnitTransportationResponseModel GetTransportaitionData(int TransportationStatusCode, int PageSize, int PageCount = 1, int IsUnmarkedVendor = 0, string ChassisNumber = null, int TransportVendorID = 4)
+        {
+            DataSet ds = new DataSet();
+
+            UnitTransportationResponseModel model = new UnitTransportationResponseModel();
+            ds = TransportMethods.GetUnitTransportation(TransportationStatusCode, PageSize, PageCount, IsUnmarkedVendor, ChassisNumber, TransportVendorID);
+
+            if (ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0 && ds.Tables.Count > 1 && ds.Tables[1].Rows.Count > 0)
+            {
+                model.UnitTranportationList = EnumerableExtension.ToList<UnitTransportationViewModel>(ds.Tables[0]);
+                model.TotalRecords = Convert.ToInt32(ds.Tables[1].Rows[0]["TotalResult"].ToString());
+            }
+            else
+            {
+                //  model.UnitTranportationList = null;
+                model.TotalRecords = 0;
+            }
+            model.PageSize = PageSize;
+            model.PageCount = PageCount;
+
+            if (ds.Tables.Count > 2 && ds.Tables[2].Rows.Count > 0)
+            {
+                model.MissingChassisNoList = EnumerableExtension.ToList<MissingChassisNo>(ds.Tables[2]);
+            }
+
+            return model;
+        }
+
+        public string UpdateFile(string DocDetail)
+        {
+            //FileInfo objOldFile = new FileInfo( p);
+
+            string SavePath = "";
+            string URL = "";
+            string DeletePath = "";
+            string RootDirectory = "";
+            string Extension = "";
+            string FileNameWithOutExtension = "";
+            string FileName = "";
+            string path = "";
+            try
+            {
+                if (!string.IsNullOrEmpty(DocDetail))
+                {
+                    var DocumentDetail = JsonConvert.DeserializeObject<DocumentViewModel>(DocDetail);
+
+                    path = Path.GetDirectoryName(DocumentDetail.AttachementPath) + @"\";
+                    HttpPostedFile file = System.Web.HttpContext.Current.Request.Files[0];
+                    FileName = Path.GetFileName(DocumentDetail.AttachementPath);
+                    FileNameWithOutExtension = Path.GetFileNameWithoutExtension(DocumentDetail.AttachementPath);
+                    Extension = Path.GetExtension(file.FileName);
+                    RootDirectory = Path.GetFullPath(Path.Combine(System.Web.HttpContext.Current.Server.MapPath("/")));
+                    DeletePath = Path.Combine(RootDirectory+ path+ FileName);
+                    URL = Path.Combine(path, FileNameWithOutExtension + Extension);
+                    SavePath = Path.Combine(RootDirectory+ path+ FileNameWithOutExtension + Extension);
+
+                    FileInfo objOldFile = new FileInfo(DeletePath);
+
+                    if (objOldFile.Exists)
+                        objOldFile.Delete();
+
+                    FileInfo objNewFile = new FileInfo(SavePath);
+                    file.SaveAs(SavePath);
+
+                    TransportMethods.InsertDocument(DocumentDetail.CustomerId, DocumentDetail.CustomerProductId, DocumentDetail.CustomerProductInvoiceId, DocumentDetail.DocumentTypeId, Path.GetFileNameWithoutExtension(SavePath)
+                        , URL.Replace(@"\", "/"), objNewFile.Length, Extension, AuthBase.UserId, DocumentDetail.ClientId, 0, DocumentDetail.SendEmailTemplateID, DocumentDetail.PurchaseID);
+                }
+
+                return VD + URL;
+            }
+            catch (Exception ex)
+            {
+                return "";
+            }
+        }
+
+        public string UploadFile(string DocDetail)
+        {
+            //FileInfo objOldFile = new FileInfo( p);
+
+            string SavePath = "";
+            string URL = "";
+            string RootDirectory = "";
+            string Extension = "";
+            string FileNameWithOutExtension = "";
+            string DirectoryName = "";
+            string PathWithRootDirectory = "";
+            string SubPath = ConfigurationManager.AppSettings["SubPath"];
+            try
+            {
+                if (!string.IsNullOrEmpty(DocDetail))
+                {
+                    var DocumentDetail = JsonConvert.DeserializeObject<DocumentViewModel>(DocDetail);
+
+                    HttpPostedFile file = System.Web.HttpContext.Current.Request.Files[0];
+
+                    if (DocumentDetail.DocumentTypeId == Constants.DocumentType.MiscEmailAttachement.GetHashCode())
+                    {
+                        DirectoryName = "/EmailAttachements/";
+                    }
+                    else {
+                        DirectoryName = FilePath(DocumentDetail.ClientId.ToString(), SubPath, DocumentDetail.InvoiceNumber.ToString(), DocumentDetail.DocumentTypeId.ToString());
+                    }
+                    FileNameWithOutExtension = Path.GetFileNameWithoutExtension(file.FileName) + DateTime.Now.Ticks;
+                    Extension = Path.GetExtension(file.FileName);
+                    RootDirectory = Path.GetFullPath(Path.Combine(System.Web.HttpContext.Current.Server.MapPath("/")));
+                    URL = Path.Combine(DirectoryName, FileNameWithOutExtension + Extension);
+                    PathWithRootDirectory = RootDirectory + DirectoryName;
+
+                    if (!System.IO.Directory.Exists(PathWithRootDirectory))
+                        System.IO.Directory.CreateDirectory(PathWithRootDirectory);
+
+                    SavePath = Path.Combine(PathWithRootDirectory, FileNameWithOutExtension + Extension);
+
+                    FileInfo objNewFile = new FileInfo(SavePath);
+                    file.SaveAs(SavePath);
+
+                    /*   TransportMethods.InsertDocument(DocumentDetail.CustomerId, DocumentDetail.CustomerProductId, DocumentDetail.CustomerProductInvoiceId, DocumentDetail.DocumentTypeId, Path.GetFileNameWithoutExtension(SavePath)
+                           , URL.Replace(@"\", "/"), objNewFile.Length, Extension, AuthBase.UserId, DocumentDetail.ClientId, 0);*/
+                }
+
+                return URL;
+            }
+            catch (Exception ex)
+            {
+                return "";
+            }
+        }
+
+        public bool DeleteEmailAttachement(string path)
+        {
+
+            string RootDirectory = Path.GetFullPath(Path.Combine(System.Web.HttpContext.Current.Server.MapPath("/")));
+            path = RootDirectory + path;
+
+            FileInfo objFileInfo = new FileInfo(path);
+            objFileInfo.Delete();
+
+            return true;
+        }
+
+        private string FilePath(string ClientID, string SubPath, string InvoiceNumber, string DocumentTypeID)
+        {
+            return @"\" + ClientID + SubPath + InvoiceNumber + @"\" + DocumentTypeID;
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+AutoMobileMOdel.txt
+
+
+Helper.js
+
+var Helper = {};
+Helper.Methods = {};
+Helper.Properties = {};
+Helper.ServicePath = '';
+Helper.AjaxCall = {};
+
+Helper.Methods.ApplyPagination = function (currentPage, pageSize, totalResults, availableResults , templateHTML) {
+    var totalPage;
+    var paginationHtmlRefernece = $(".customPagination ul.pagination");
+
+    $("html, body").animate({ scrollTop: 0 }, "slow");
+
+    $(paginationHtmlRefernece).html('');
+    $(".customTotalResult").text(totalResults);
+    var from = (currentPage - 1) * pageSize + 1;
+    var to = (from + parseInt(availableResults) - 1);
+    $(".customRange").text(from + " - " + to);
+
+    $(paginationHtmlRefernece).append('<li class="leftnav" data-toggle="tooltip" data-placement="top" title="Previous Page" style=' + (currentPage == 1 ? "pointer-events:none;opacity:0.4;" : "") + '><a href="javascript:;">&laquo;</a></li>');
+    totalPage = Math.ceil(totalResults / pageSize);
+
+    var endIndex = totalPage;
+    var startIndex = 1;
+
+    if (totalPage >= 5) {
+        startIndex = currentPage - 1;
+        endIndex = currentPage + 3;
+
+        if (startIndex <= 0) {
+            startIndex = 1;
+            endIndex = startIndex + 4;
+        }
+
+        if (endIndex > totalPage) {
+            endIndex = totalPage;
+            startIndex = totalPage - 4;
+        }
+    }
+
+    for (var i = startIndex ; i <= endIndex ; i++) {
+
+        $(paginationHtmlRefernece).append(templateHTML.replace("{{i}}", i)
+                                                      .replace("{{currentPage}}", i)
+                                                      .replace("{{activeClassName}}", i == currentPage ? "active" : ""));
+    }
+
+    $(paginationHtmlRefernece).append('<li class="rightnav" data-toggle="tooltip" data-placement="top" title="Next Page" style=' + (currentPage == endIndex ? "pointer-events:none;opacity:0.4;" : "") + '  ><a href="javascript:;">&raquo;</a></li>');
+
+};
+
+Helper.Methods.ShowPopUp = function (title, body) {
+    $('#msgModal').find('.modal-title b').html(title);
+    $('#msgModal').find('.modal-body p').html(body);
+
+    $('#msgModal').modal('show');
+
+    setTimeout(function () {
+        $('#msgModal').modal('hide');
+    }, 3000);
+}
+
+
+Helper.Methods.ValidateEmail = function (email) {
+    var regExp = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    return regExp.test(email);
+}
+
+Helper.AjaxCall.GetCallWithoutLoaderImage = function (uri, data, onSuccess, onError) {
+    var loaderInterval;
+    var request = data;
+
+    Helper.Properties.PostCalls++;
+
+    var req = $.ajax({
+        url: Helper.ServicePath + uri,
+        async: true,
+        type: 'GET',
+        cache: false,
+        data: data,
+        dataType: 'json',
+        contentType: 'application/json; charset=utf-8',
+        crossDomain: true,
+        beforeSend: function () {
+        },
+        complete: function () {
+        },
+        success: function (data) {
+
+            Helper.Properties.PostCalls--;
+            if (Helper.Properties.PostCalls == 0) {
+                clearTimeout(loaderInterval);
+            }
+            if (data != "Failed" && onSuccess) {
+                onSuccess(data);
+            }
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            Helper.Properties.PostCalls--;
+            if (Helper.Properties.PostCalls == 0) {
+                clearTimeout(loaderInterval);
+            }
+            if (onError) { onError(data); }
+        }
+    });
+
+    return req;
+};
+
+Helper.AjaxCall.PostCall = function (uri, data, onSuccess, onError) {
+    var loaderInterval;
+    var request = data;
+    Helper.Properties.PostCalls++;
+
+    var req = $.ajax({
+        url: Helper.ServicePath + uri,
+        async: true,
+        type: 'POST',
+        cache: false,
+        data: data,
+        crossDomain: true,
+        beforeSend: function () {
+            //var LoadingimageLink = '/assets/images/preloader.gif';
+            //$('#loadingImg').attr('src', LoadingimageLink);
+            //$('.loadingDiv').show();
+        },
+        complete: function () {
+            //$('.loadingDiv').hide();
+        },
+        success: function (data) {
+            Helper.Properties.PostCalls--;
+            if (Helper.Properties.PostCalls == 0) {
+                // clearTimeout(loaderInterval);
+            }
+            if (onSuccess) {
+                onSuccess(data);
+            }
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+
+            Helper.Properties.PostCalls--;
+            if (Helper.Properties.PostCalls == 0) {
+                //clearTimeout(loaderInterval);
+            }
+            if (onError) { onError(data); }
+        }
+    });
+
+    return req;
+};
+
+
+
+
+------------------------------------
+
+BaseController.cs
+
+
+using JTJapan.Core.Helper;
+using System.Web.Mvc;
+
+namespace Automobile.Admin.Models
+{
+    public class BaseController : Controller
+    {
+        protected override void OnActionExecuting(ActionExecutingContext filterContext)
+        {
+            string Controller = ControllerContext.RouteData.Values["Controller"].ToString();
+            string action = ControllerContext.RouteData.Values["action"].ToString();
+            if ((AuthBase.UserId > 0 && AuthBase.ClientId != 0) || filterContext.IsChildAction || action == "SearchMasterResult" 
+                || action == "_SearchMaster" || action == "MultipleImages")
+            {
+                //if (action == "Login" || action == "_Header" || action == "LogOut" || Controller == "Error")
+                    return;
+                //InsertUnauthorizedLogin();
+                //filterContext.Result = (ActionResult)new RedirectResult("~/Error/UnAuthorized");
+            }
+            else
+                filterContext.Result = (ActionResult)new RedirectResult("~/Account/Login");
+
+        }
+        //public bool IsAuthenticate()
+        //{
+        //    SqlParameter[] parameters =
+        //    {    
+        //        new SqlParameter("@UserId", SqlDbType.Int) { Value = AuthBase.UserId },                
+        //        new SqlParameter("@URL", SqlDbType.VarChar) { Value = (object) (this.ControllerContext.RouteData.Values["Controller"].ToString() + "/" + this.ControllerContext.RouteData.Values["action"].ToString())}
+        //    };
+        //    DataTable dt = DataAccess.getDataTable("dbo.VS_Select_IsAuthenticUser", parameters, General.GetConstring());
+        //    if (dt != null && dt.Rows.Count > 0)
+        //        return Convert.ToBoolean(dt.Rows[0]["Result"]);
+        //    return false;
+        //}
+    }
+}
+
+
+-------------------------------
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.ComponentModel.DataAnnotations;
+
+namespace Automobile.Admin.Models
+{
+
+    public class LoginViewModel
+    {
+        [Required]
+        [Display(Name = "User name")]
+        public string UserName { get; set; }
+
+        public string Picture { get; set; }
+        public bool IsAction { get; set; }
+
+        public int UserId { get; set; }
+
+        public int UserTypeId { get; set; }
+
+        [Required]
+        [DataType(DataType.Password)]
+        [Display(Name = "Password")]
+        public string Password { get; set; }
+
+        [Display(Name = "Remember me?")]
+        public bool RememberMe { get; set; }
+
+        public int ClientId { get; set; }
+        public string ClientNames { get; set; }
+        public string UserTypeIDS { get; set; }
+        public string ClientIDS { get; set; }
+        public string UserTypeNames { get; set; }
+        public string DashboardScreenURL { get; set; }
+        public int DashboardScreenId { get; set; }
+
+        public bool IsSelect { get; set; }
+        public bool IsEdit { get; set; }
+        public bool IsDelete { get; set; }
+
+    }
+}
+
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+AutomobileSharedViews + dashbord.txt
+
+Dashboard.cshtml
+
+@{
+    ViewBag.Title = "Dashboard";
+    DateTime firstDay = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+    DateTime today = DateTime.Now;
+}
+
+<!-- bootstrap datepicker -->
+<script src="~/Assets/plugins/daterangepicker/moment.js"></script>
+<script src="~/Assets/plugins/daterangepicker/daterangepicker.js"></script>
+<link href="~/Assets/plugins/daterangepicker/daterangepicker.css" rel="stylesheet" />
+<div class="content-wrapper">
+    <section class="content-header">
+        <div class="row">
+            <div class="col-md-8">
+                <h4 class="pull-left">Dashboard</h4>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="input-group" id=" daterange-btn">
+                    <div class="input-group-addon" style="background-color: #F4F4F4">
+                        <i class="fa fa-calendar"></i>
+                    </div>
+                    <button type="button" class="btn btn-default pull-left" id="dateRangeButton">
+                        <span id="startDate"></span> <span id="dash"> - </span> <span id="endDate"></span>&nbsp;
+                        <span></span>&nbsp;
+                        <i class="fa fa-caret-down"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+</section>
+    @Html.Action("_Dashboard", new
+    {
+        DateFrom = firstDay.ToString(),
+        ToDate = today.ToString()
+    });
+
+</div>
+
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        var date = new Date(), y = date.getFullYear(), m = date.getMonth();
+
+        $('#startDate').text(moment(new Date(y, m, 1)).format('MMMM DD, YYYY'));
+        $('#endDate').text(moment(new Date()).format('MMMM DD, YYYY'));
+
+        $('#dateRangeButton').daterangepicker(
+        {
+            ranges: {
+                'Today': [moment(), moment()],
+                'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+                'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+                'This Month': [moment().startOf('month'), moment().endOf('month')],
+                'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
+            },
+            "linkedCalendars": false,
+            startDate: moment(),
+            endDate: moment()
+        },
+        function (start, end) {
+            $('#startDate').hide();
+            $('#endDate').hide();
+            $('#dash').hide();
+
+            $('#dateRangeButton span').html(start.format('MMMM DD, YYYY') + ' - ' + end.format('MMMM DD, YYYY'));
+            DateFrom = start.format('MMMM DD, YYYY');
+            ToDate = end.format('MMMM DD, YYYY');
+            GetfilteredRecords(DateFrom, ToDate);
+        }
+    );
+
+    });
+</script>
+
+
+-------------------------------------
+_header.cshtml
+
+
+
+@{
+    Layout = null;
+    var UserName = @JTJapan.Core.Helper.AuthBase.UserName;
+    //var clientId = @JTJapan.Core.Helper.AuthBase.ClientId;
+}
+
+
+<script type="text/javascript">
+
+
+    function changeClient(id) {
+        $.ajax({
+            url: '/Home/UpdateClientId',
+            dataType: 'json',
+            type: 'POST',
+            async: false,
+            data: { 'ClientId': id },
+            success: function (data) {
+                location.reload();
+            },
+            error: function (XMLHttpRequest, textStatus, errorThrown) {
+                //console.log(XMLHttpRequest);
+                //console.log("error occur : " + errorThrown + "  " + textStatus + "  " + XMLHttpRequest);
+            }
+
+        });
+    };
+
+    function SearchMaster(btn) {
+        $('#txtsearch').val($.trim($('#txtsearch').val()));
+        if ($('#txtsearch').val().length < 3) {
+            return;
+        }
+        else {
+            $('#searchForm').submit();
+        }
+    }
+
+    function changeClientName(name) {
+
+        $("[id*='btnClient']").text(name);
+        $(".client-name").text(name.substring(0, 18));
+        var img = location.origin + '/Assets/img/' + name + '.png';
+        $(".admin-logo").attr('src', img);
+    };
+
+    $(document).ready(function () {
+        $('#txtsearch').val($.trim($('#txtsearch').val()));
+        $('#searchForm').on('submit', function (e) {
+            if ($('#txtsearch').val().length < 3) {
+                e.preventDefault();
+            }
+        });
+    })
+</script>
+<header class="main-header">
+    <!-- Logo -->
+    <a href="../home/index" class="logo">
+        <!-- mini logo for sidebar mini 50x50 pixels -->
+        <span class="logo-mini pull-left"><img class="admin-logo" src="" title="Admin" width="40" height="28" /></span>
+        <!-- logo for regular state and mobile devices -->
+        <span class="logo-lg pull-left">
+            <img class="admin-logo" src="" title="Automobile Admin" width="40" height="28" />
+            <span class="client-name"></span>
+        </span>
+    </a>
+    <!-- Header Navbar: style can be found in header.less -->
+    <nav class="navbar navbar-static-top">
+        <!-- Sidebar toggle button-->
+        <a href="#" class="sidebar-toggle" data-toggle="push-menu" role="button">
+            <span class="sr-only">Toggle navigation</span>
+        </a>
+
+        @using (Html.BeginForm("SearchMaster", "Home", FormMethod.Post, new { id = "searchForm" }))
+        {<div class="col-md-6 pull-left" style="margin-left:100px; margin-top:8px;">
+            <div class="input-group">
+                <input type="text" class="form-control" placeholder="Search by Chassis no.  or  Invoice no. " style="border-right:0px;" id="txtsearch" name="txtsearch" required>
+                <span class="input-group-addon"><i class="fa fa-search" onclick="SearchMaster(this);"></i></span>
+            </div>
+        </div>
+        }
+        <div class="navbar-custom-menu">
+            <ul class="nav navbar-nav">
+                <li style="padding-top:8px;margin-right:15px;">
+                    <div class="btn-group">
+                        <button id="btnClient" type="button" class="btn btn-primary">Select Client</button>
+                        <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
+                            <span class="caret"></span>
+                            <span class="sr-only">Toggle Dropdown</span>
+                        </button>
+                        <ul class="dropdown-menu" role="menu">
+                            <li>
+                                <a href="" onclick='changeClient(-1);'>
+                                    Select All
+                                </a>
+                            </li>
+                            @foreach (var item in ViewBag.ClientList)
+                            {
+                                <li>
+                                    <a href="" onclick='changeClient(@item.Value);'>
+                                        <img src='@Url.Content("~/Assets/img/" + item.Text + ".png")' title="" width="20" height="20" />
+                                        @item.Text
+                                    </a>
+                                    <script type="text/javascript">
+                                    @if (item.Value == Convert.ToString(JTJapan.Core.Helper.AuthBase.ClientId))
+                                {
+                                         @: changeClientName('@item.Text');
+                                                                            }
+                                    </script>
+                                </li>
+                            }
+                        </ul>
+
+                    </div>
+                </li>
+                <li class="dropdown user user-menu">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                        <img src='@Url.Content("~/Assets/img/default-user.png")' class="user-image" alt="User Image">
+                        <span class="hidden-xs">@UserName</span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <!-- User image -->
+                        <li class="user-header">
+                            <img src='@Url.Content("~/Assets/img/default-user.png")' class="img-circle" alt="User Image">
+                            <p>
+                                @UserName
+                            </p>
+                        </li>
+                        <!-- Menu Footer-->
+                        <li class="user-footer">
+                            <div class="pull-right">
+                                <a href='@(Url.Action("Logout", "Account"))' class="btn btn-default btn-flat">Sign out</a>
+                            </div>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+</header>
+
+
+
+
+------------------------
+
+_leftSideBar.cshtml
+
+
+
+@model IEnumerable<JTJapan.Core.AdminArea.ViewModel.AdminMenu>
+@{
+    Layout = null;
+    var UserName = @JTJapan.Core.Helper.AuthBase.UserName;
+}
+
+<aside class="main-sidebar">    
+    <section class="sidebar">        
+        <div class="user-panel">
+            <div class="pull-left image">
+                <img src='@Url.Content("~/Assets/img/default-user.png")' class="img-circle" alt="User Image">
+            </div>
+            <div class="pull-left info">
+                <p>@UserName</p>
+            </div>
+        </div>        
+        <ul class="sidebar-menu" data-widget="tree">
+            @if (Model != null && Model.Count() > 0)
+            {
+                foreach (var menu in Model.GroupBy(x => x.CategoryId))
+                {
+                    <li class="treeview">
+                        <a href="#">
+                            <i class="@menu.FirstOrDefault().CssClass"></i>
+                            <span>@menu.FirstOrDefault().CategoryName</span>
+                            <span class="pull-right-container">
+                                <i class="fa fa-angle-left pull-right"></i>
+                            </span>
+                        </a>
+                        @if (Model.Where(x => x.CategoryId == menu.Key).Count() > 0)
+                        {
+                            <ul class="treeview-menu">
+                                @foreach (var item in (Model.Where(x => x.CategoryId == menu.Key)))
+                                {
+                                    <li><a href='@(item.ScreenUrl)' @(item.TargetBlank == true ? "target='_blank'" : "")><i class="fa fa-circle-o"></i> @item.ScreenName</a></li>
+                                }
+                            </ul>
+                        }
+                    </li>
+                }
+            }
+
+        </ul>
+    </section>    
+</aside>
+
+
+-----------------------------------------------
+
+_leftSidebarAdmin.cshtml;
+
+
+
+ <!-- Left side column. contains the logo and sidebar -->
+<aside class="main-sidebar NavigationVM" style="position: fixed">
+    <!-- sidebar: style can be found in sidebar.less -->
+    <section class="sidebar">
+        <!-- Sidebar user panel -->
+        <div class="user-panel">
+            <div class="pull-left image">
+                <img src='@Url.Content("~/Assets/img/default-user.png")' class="img-circle" alt="User Image">
+            </div>
+            <div class="pull-left info">
+            </div>
+
+        </div>
+
+        <ul class="sidebar-menu" data-bind="foreach: { data: NavigationList }">
+
+            <li data-bind="attr:{class:'treeview '+ IsActive}" style="cursor: pointer;">
+                <a data-bind="click:$root.OpenLink">
+                    <i data-bind="attr: { 'class': IconClass}"></i>
+                    <span style="cursor: pointer !important;" data-bind="text: NavigationName"></span>
+                    <span class="pull-right-container">
+                        <i data-bind="css:{ 'fa fa-angle-left pull-right': ChildList().length > 0 }"></i>
+                    </span>
+                </a>
+                <ul class="treeview-menu" data-bind="foreach:{data:ChildList}">
+                    <li data-bind="attr:{'id' : NavigationCode,'class' : IsActive}">
+                        <a data-bind="attr:{'href':NavigationURL}">
+                            <i class="fa fa-dot-circle-o"></i>
+                            <!--ko text : NavigationName -->
+                            <!-- /ko-->
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+        </ul>
+
+    </section>
+    <!-- /.sidebar -->
+</aside>
+
+<script type="text/javascript">
+
+    var NavigationVM = function () {
+        var self = this;
+        self.NavigationList = ko.observableArray();
+        function NavigationDO(data) {
+            var self = this;
+            self.NavigationCode = data.NavigationCode;
+            self.NavigationName = data.NavigationName;
+            self.IconClass = data.IconClass;
+            self.ChildList = ko.observableArray();
+            self.NavigationURL = data.NavigationURL;
+            self.IsActive = "";
+        };
+        function ChildNavigationDO(data) {
+            var self = this;
+            self.NavigationCode = data.NavigationCode;
+            self.NavigationName = data.NavigationName;
+            self.NavigationURL = AdminVD + data.NavigationURL;
+            self.IsActive = window.location.pathname.toLowerCase() == (AdminVD + data.NavigationURL).toLowerCase() ? "active" : "";
+        }
+
+        self.LoadData = function () {
+            self.NavigationList([]);
+            var url = AdminVD + '/Common/GetNavigations';
+            $.getJSON(url, function (data) {
+                var Data = data.Table;
+                var Parent = [];
+                var Child = [];
+
+                $.each(Data, function (i, v) {
+                    if (v.LevelType == 1) {
+                        Parent.push(v);
+                    }
+                });
+
+                $.each(Data, function (i, v) {
+                    if (v.LevelType == 2) {
+                        Child.push(v);
+                    }
+                });
+
+                $.each(Parent, function (i, v) {
+                    var f = new NavigationDO(v, self);
+                    if (f.NavigationURL != "null" && window.location.pathname.toLowerCase() == (f.NavigationURL).toLowerCase()) {
+                        f.IsActive = "active";
+                        self.NavigationList.push(f);
+                        return;
+                    }
+                    $.each(Child, function (ii, vv) {
+                        if (vv.ParentCode == f.NavigationCode) {
+                            var Childs = new ChildNavigationDO(vv, f);
+                            if (Childs.IsActive == "active")
+                                f.IsActive = Childs.IsActive;
+                            f.ChildList.push(Childs);
+                        }
+                    });
+                    self.NavigationList.push(f);
+                });
+            });
+        };
+        self.LoadData();
+
+        self.OpenLink = function (data, event) {
+            if (data.NavigationURL != null) {
+                window.location.href = AdminVD + data.NavigationURL;
+            }
+
+        }
+    }
+
+    var NavigationVMObj = new NavigationVM();
+    $(document).ready(function () {
+        ko.applyBindings(NavigationVMObj, $('.NavigationVM')[0]);
+    })
+
+</script>
+
+
+
++++++++++++++++++++++++++
+
+
+
+
+
+
+
+
+
+
+
