@@ -1,0 +1,2245 @@
+View-Login:
+
+@model CarDealsJapanCore.Models.Customer.LoginModel
+@{
+    ViewBag.Title = "Login";
+    Layout = "~/Views/Shared/_LayoutAccount.cshtml";
+}
+
+<div class="center-3">
+    <section class="login">
+        <article>
+            <div class="newcustomer">
+                <p class="text-left">If you are a new customer, <a href='@( Url.Action("Register", "Account", new { returnUrl = ViewBag.ReturnUrl }))' title=""><span>Click Here</span></a></p>
+            </div>
+            <div class="loginsec text-left">
+                <h4>Login <span>here</span></h4>
+                <h3>Enter your email and password below to login.</h3>
+            </div>
+            <div class="formlogin">
+                @using (Html.BeginForm("Login", "Account", new { ReturnUrl = ViewBag.ReturnUrl }))
+                {
+                    @Html.AntiForgeryToken()
+                    @Html.ValidationSummary(true, "", new { @class = "text-red" })                    
+                    <table>
+                        <tr>
+                            <td width="180"><label>Email</label></td>
+                            <td>
+                                <div class="pass-wrap">
+                                    @Html.TextBoxFor(m => m.UserName, new { id = "txtEmail", placeholder = "Enter your email", required = "required", autofocus = "autofocus" })
+                                    @Html.ValidationMessageFor(m => m.UserName, "", new { @class = "text-red" })
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><label>Password</label></td>
+                            <td>
+                                @Html.PasswordFor(m => m.Password, new { id = "txtPassword", placeholder = "Enter your password", required = "required" })
+                                @Html.ValidationMessageFor(m => m.Password, "", new { @class = "text-red" })
+                            </td>
+                        </tr>
+                        <tr class="text-login">
+                            <td></td>
+                            <td>
+                                <span class="for-pass">Forgot Password?<a href='@( Url.Action("PasswordRecovery", "Account"))'> Click Here</a></span>
+                                <input id="btnLogin" type="submit" name="btnlog" class="btnsub" value="Login">
+                            </td>
+                        </tr>
+                    </table>
+                }
+            </div>
+        </article>
+    </section>
+</div>
+
+<script type="text/javascript">
+    $(document).ready(function () {        
+
+        $('[id*=btnLogin]').click(function () {
+
+            return ValidateForm();
+        });
+    });
+    function ValidateForm() {
+        var iserror = false;
+        var email = $('[id*=txtEmail]');
+        var password = $('[id*=txtPassword]');
+
+        email.removeClass('error');
+        password.removeClass('error');
+
+        if (email.val().trim() == '' || typeof email.val() == "undefined" || !Helper.Methods.ValidateEmail(email.val().trim())) {
+            email.addClass('error');
+            iserror = true;
+        }
+        if (password.val().trim() == '' || typeof password.val() == "undefined") {
+            password.addClass('error');
+            iserror = true;
+        }
+
+        return !iserror;
+    }
+</script>
+
+
+Register:
+
+-------
+
+@model CarDealsJapanCore.Models.Customer.RegisterModel
+@{
+    ViewBag.Title = "Register";
+    Layout = "~/Views/Shared/_LayoutAccount.cshtml";
+}
+
+<div class="center-3">
+    <section class="login">
+        <article>
+            <div class="newcustomer">
+                <p>Existing Customer! <a href='@( Url.Action("Login", "Account", new { returnUrl = ViewBag.ReturnUrl }))'><span>Click Here</span></a></p>
+            </div>
+            <div class="loginsec text-left">
+                <h4>Create <span> an Account</span></h4>
+                <h3>Not Registered yet with cardealsjapan.com. Register here.</h3>
+            </div>
+            <div class="formlogin formreg">
+                @using (Html.BeginForm("Register", "Account"))
+                {
+                    @Html.AntiForgeryToken()
+                    @Html.ValidationSummary(true, "", new { @class = "text-red" })
+                    <table>
+                        <tr>
+                            <td width="215"><label>Name <span>*</span></label></td>
+                            <td>
+                                @Html.TextBoxFor(m => m.UserName, new { id = "txtName", placeholder = "Enter your name", autofocus = "autofocus" })
+                                @Html.ValidationMessageFor(m => m.UserName, "", new { @class = "field-validation-error" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><label>Email Address <span>*</span></label></td>
+                            <td>
+                                @Html.TextBoxFor(m => m.Email, new { id = "txtEmail", placeholder = "Enter your email" })
+                                @Html.ValidationMessageFor(m => m.Email, "", new { @class = "text-red" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><label>Phone Number <span>*</span></label></td>
+                            <td>
+                                @Html.HiddenFor(m => m.CellFlag, new { id = "hfCellFlag" })
+                                @Html.TextBoxFor(m => m.CellNo, new { id = "txtPhone" })
+                                @Html.ValidationMessageFor(m => m.CellNo, "", new { @class = "text-red" })
+                            </td>
+                        </tr>
+                    </table>
+                    <div class="info-s-form">
+                        <h4>Protect your information with a password</h4>
+                        <p>This will be your only Cardealjapan.com password.</p>
+                    </div>
+                    <table>
+                        <tr>
+                            <td width="215"><label>Password <span>*</span></label></td>
+                            <td>
+                                @Html.PasswordFor(m => m.Password, new { id = "txtPassword", placeholder = "Enter your password" })
+                                <label class="password-strength"> <span id="result"></span></label>
+                                @Html.ValidationMessageFor(m => m.Password, "", new { @class = "text-red" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td><input id="btnRegister" type="submit" name="btnlog" class="btnsub" value="Create Account"></td>
+                        </tr>
+                    </table>
+                }
+            </div>
+        </article>
+    </section>
+</div>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+
+        $('[id*=txtPhone]').intlTelInput({
+            initialCountry: "auto",
+            utilsScript: "/Scripts/utils.js"
+        });
+
+        $('[id*=txtPassword]').keyup(function () {
+            $('#result').html(checkStrength($('[id*=txtPassword]').val()));
+        });
+
+        $('[id*=txtPhone]').on("countrychange", function (e, countryData) {
+            var countryData = $('[id*=txtPhone]').intlTelInput("getSelectedCountryData");
+            $('[id*=hfCellFlag]').val(countryData.iso2);
+        });
+
+        
+
+        $('[id*=btnRegister]').click(function () {
+            return ValidateForm();
+        });
+
+        debugger;
+        var country = Helper.Methods.GetCookie("country");
+        if (country != null) {
+            $('[id*=txtPhone]').intlTelInput("setCountry", country);
+        }
+    });
+    function ValidateForm() {
+        var iserror = false;
+        var name = $('[id*=txtName]');
+        var email = $('[id*=txtEmail]');
+        var phone = $('[id*=txtPhone]');
+        var password = $('[id*=txtPassword]');
+
+        //Remove validation messages 
+        $('.text-red').text('');
+
+        name.removeClass('error');
+        email.removeClass('error');
+        phone.removeClass('error');
+        password.removeClass('error');
+
+        if (name.val().trim() == '' || typeof name.val() == "undefined") {
+            name.addClass('error');
+            iserror = true;
+        }
+        if (email.val().trim() == '' || typeof email.val() == "undefined" || !Helper.Methods.ValidateEmail(email.val().trim())) {
+            email.addClass('error');
+            iserror = true;
+        }
+        if (phone.val().trim() == '' || typeof phone.val() == "undefined") {
+            phone.addClass('error');
+            iserror = true;
+        }
+        if (password.val().trim() == '' || typeof password.val() == "undefined") {
+            password.addClass('error');
+            iserror = true;
+        }
+        return !iserror;
+    }
+   
+</script>
+
+----------------------
+
+PasswordRecovery.cshtml
+
+
+
+
+@model CarDealsJapanCore.Models.Customer.PasswordRecovery
+@using CaptchaMvc.HtmlHelpers
+@{
+    Layout = "~/Views/Shared/_LayoutAccount.cshtml";
+    ViewBag.Title = "Password Recovery";
+}
+
+<div class="wrapper">
+    <section class="sectionFlow forgotPass">
+        <h2>Car Deals Japan Password Assistance</h2>
+        <p class="marginBot">
+            Enter the e-mail address associated with your CarDealsJapan.com account, then click
+            <br>
+            Continue. We'll email you a link to a page where you can easily create a new password.
+        </p>
+        @using (Html.BeginForm("PasswordRecovery", "Account"))
+        {            
+            @Html.AntiForgeryToken()
+            if (!String.IsNullOrEmpty(Model.Message))
+            {
+                <div class="green-text">
+                    @Model.Message
+                </div>
+            }
+
+            <p class="">Please enter your email address below. You will receive a link to reset your password.</p>
+            <table>
+                <tr>
+                    <td>
+                        Email Address
+                    </td>
+                    <td>
+                        @Html.TextBoxFor(m => m.Email, new { id = "txtEmail", placeholder = "Enter your email" })
+                        @Html.ValidationMessageFor(m => m.Email, "", new { @class = "text-red" })
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        @Html.Captcha(5)
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td><input id="btnContinue" type="submit" name="btnContinue" class="btnsub" value="Continue"></td>
+                </tr>
+            </table>
+            <h3>Type the characters you see in this image</h3>
+        }
+        <p>
+            <strong>Has your e-mail address changed?</strong> If you no longer use the e-mail address associated<br>
+            with your CarDealsJapan.com account, you may contact <a href="javascript:;" target="_blank">Customer Service</a> for help
+            <br>
+            restoring access to your account.
+        </p>
+    </section>
+</div>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+
+        $('[id*=btnContinue]').click(function () {
+            return ValidateForm();
+        });
+
+
+        $('#CaptchaDeText').siblings('a').click(function () {
+
+            $('#CaptchaInputText').val('');
+
+        });
+
+        $('#CaptchaInputText').on('keypress', function (evt) {
+
+            var charCode = (evt.which) ? evt.which : evt.keyCode
+
+            if (charCode == 60 || charCode == 62) {
+                return false;
+            }
+            return true;
+        });
+    });
+
+
+
+
+    function ValidateForm() {
+        var iserror = false;
+        var email = $('[id*=txtEmail]');
+
+        email.removeClass('error');
+
+        if (email.val().trim() == '' || typeof email.val() == "undefined" || !Helper.Methods.ValidateEmail(email.val().trim())) {
+            email.addClass('error');
+            iserror = true;
+        }
+        return !iserror;
+    }
+</script>
+
+
+--------------------
+
+ public class PasswordRecoveryConfirm
+    {
+        [Required(ErrorMessage = "Password is required")] 
+        [StringLength(20, MinimumLength = 6,ErrorMessage="Password length must be between 6 and 20.")]        
+        public string Password { get; set; }
+
+        [Required(ErrorMessage = "Confirm Password is required")]        
+        [Compare("Password", ErrorMessage = "Password doesn't match.")]
+        public string ConfirmPassword { get; set; }
+
+        public bool DisablePasswordChanging { get; set; }
+        public string Message { get; set; }
+    }
+
+
+PasswordRecoveryConfirm.cshtml
+
+
+@model CarDealsJapanCore.Models.Customer.PasswordRecoveryConfirm
+@{
+    Layout = "~/Views/Shared/_LayoutAccount.cshtml";
+    ViewBag.Title = "Password Recovery Confirm";
+}
+<style type="text/css">
+    .forgotPass .short {
+        font-weight: bold;
+        color: #FF0000;
+        font-size: larger;
+    }
+
+    .forgotPass .weak {
+        font-weight: bold;
+        color: orange;
+        font-size: larger;
+    }
+
+    .forgotPass .good {
+        font-weight: bold;
+        color: #2D98F3;
+        font-size: larger;
+    }
+
+    .forgotPass .strong {
+        font-weight: bold;
+        color: limegreen;
+        font-size: larger;
+    }
+</style>
+<div class="wrapper">
+    <section class="sectionFlow forgotPass">
+        <h2>Car Deals Japan Password Recovery</h2>       
+
+        @using (Html.BeginForm("PasswordRecoveryConfirm", "Account"))
+        {
+            @Html.AntiForgeryToken()
+            <div id="divMessage" class="red-text">
+                @Model.Message
+            </div>
+            if (!Model.DisablePasswordChanging)
+            {
+                <p>Enter your new password, then click Recover.</p>
+                <table>
+                    <tr>
+                        <td>
+                            New Password
+                        </td>
+                        <td>
+                            @Html.PasswordFor(m => m.Password, new { id = "txtPassword", placeholder = "Enter new password" })
+                            <span id="result"></span>
+                            @Html.ValidationMessageFor(m => m.Password, "", new { @class = "text-red" })
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Confirm Password</td>
+                        <td>
+                            @Html.PasswordFor(m => m.ConfirmPassword, new { id = "txtConfirmPassword", placeholder = "Enter confirm password" })
+                            @Html.ValidationMessageFor(m => m.ConfirmPassword, "", new { @class = "text-red" })
+                        </td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td><input id="btnRecoverAccount" type="submit" name="RecoverAccount" class="btnsub" value="Recover Account"></td>
+                    </tr>
+                </table>
+            }
+        }
+    </section>
+</div>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+
+        $('[id*=btnRecoverAccount]').click(function () {
+            return ValidateForm();
+        });
+
+        $('[id*=txtPassword]').keyup(function () {
+            $('#result').html(checkStrength($('[id*=txtPassword]').val()));
+        });
+
+    });
+
+    function ValidateForm() {
+        var iserror = false;
+        var password = $('[id*=txtPassword]');
+        var confirmPassword = $('[id*=txtConfirmPassword]');
+
+        $('[id*=divMessage]').html('');
+        password.removeClass('error');
+        confirmPassword.removeClass('error');
+
+        if (password.val().trim() == '' || typeof password.val() == "undefined") {
+            password.addClass('error');
+            iserror = true;
+        }
+        if (confirmPassword.val().trim() == '' || typeof confirmPassword.val() == "undefined") {
+            confirmPassword.addClass('error');
+            iserror = true;
+        }        
+        if (!iserror && password.val().length < 6) {
+            $('[id*=divMessage]').html("Password is too short.");
+            iserror = true;
+        }
+        else if (!iserror && password.val().length > 20) {
+            $('[id*=divMessage]').html("Password is too long.");
+            iserror = true;
+        }
+        else if (!iserror && password.val().trim() != confirmPassword.val().trim()) {
+            $('[id*=divMessage]').html("Password doesn't match.");
+            iserror = true;
+        }
+        
+        return !iserror;
+    }
+    function checkStrength(password) {
+        var strength = 0
+        if (password.length < 6) {
+            $('#result').removeClass()
+            $('#result').addClass('short')
+            return 'Too short'
+        }
+        if (password.length > 7) strength += 1
+        // If password contains both lower and uppercase characters, increase strength value.
+        if (password.match(/([a-z].*[A-Z])|([A-Z].*[a-z])/)) strength += 1
+        // If it has numbers and characters, increase strength value.
+        if (password.match(/([a-zA-Z])/) && password.match(/([0-9])/)) strength += 1
+        // If it has one special character, increase strength value.
+        if (password.match(/([!,%,&,@@,#,$,^,*,?,_,~])/)) strength += 1
+        // If it has two special characters, increase strength value.
+        if (password.match(/(.*[!,%,&,@@,#,$,^,*,?,_,~].*[!,%,&,@@,#,$,^,*,?,_,~])/)) strength += 1
+        // Calculated strength value, we can return messages
+        // If value is less than 2
+        if (strength < 2) {
+            $('#result').removeClass()
+            $('#result').addClass('weak')
+            return 'Weak'
+        } else if (strength == 2) {
+            $('#result').removeClass()
+            $('#result').addClass('good')
+            return 'Good'
+        } else {
+            $('#result').removeClass()
+            $('#result').addClass('strong')
+            return 'Strong'
+        }
+    }
+</script>
+
+
+
+
+CREATE Procedure CA_Select_PasswordRecovery
+@Email nvarchar(100)
+,@PasswordRecoveryToken nvarchar(100)
+as set nocount on
+
+select CustomerId,PasswordRecoverExpiry
+from Customer(nolock)
+where Email = @Email
+and PasswordRecoveryToken = @PasswordRecoveryToken
+
+set nocount off
+
+
+
+
+Create Procedure CA_Update_Password
+@Email nvarchar(100)
+,@Password nvarchar(100)
+,@UserIP varchar(20)
+as begin
+
+update Customer
+set [Password] = @Password
+,PasswordRecoveryToken = null
+,PasswordRecoverExpiry = null
+,UpdationIP = @UserIP
+where Email = @Email
+and IsActive = 1
+
+end
+-------------------------
+
+
+ChangePassword.cshtml
+
+
+@model CarDealsJapanCore.Models.Customer.ChangePasswordModel
+@{
+    ViewBag.Title = "ChangePassword";
+    Layout = "~/Views/Shared/_LayoutAccount.cshtml";
+}
+
+@Html.Action("UserNavigation", new { selectedMenu = "change" })
+<div class="box-change" style="display:block;">
+    <div class="container">
+        <div class="order-search">
+            <ul>
+                <li class="head1">
+                    <h3 class="text-center">Change<span> Password</span></h3>
+                </li>
+            </ul>
+        </div>
+        <div class="formlogin">
+
+            @using (Html.BeginForm("ChangePassword", "Account"))
+            {
+                @Html.AntiForgeryToken()
+                @Html.ValidationSummary(true, "", new { @class = "text-red" })
+
+                <table>
+                    <tr>
+                        <td>
+                            <div class="pass-wrap">
+                                <label>Current Password *</label>
+                                @Html.PasswordFor(m => m.CurrentPassword, new { id = "txtCurrentPassword", placeholder = "Enter current password" })
+                                @Html.ValidationMessageFor(m => m.CurrentPassword, "", new { @class = "text-red error-msg" })
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="pass-wrap">
+                             <label>New Password *</label>
+                             @Html.PasswordFor(m => m.NewPassword, new { id = "txtNewPassword", placeholder = "Enter new password" })
+                             <label class="password-strength" > <span id="result"></span></label>
+                             @Html.ValidationMessageFor(m => m.NewPassword, "", new { @class = "text-red error-msg" })
+                           </div>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td>
+                            <div class="pass-wrap">
+                                <label>Re-type New Password *</label>
+                                @Html.PasswordFor(m => m.ConfirmPassword, new { id = "txtRetypeNewPassword", placeholder = "Re-type New Password" })
+                                @Html.ValidationMessageFor(m => m.ConfirmPassword, "", new { @class = "text-red error-msg"})
+                            </div>
+                        </td>
+                    </tr>
+
+                    <tr class="text-login">
+                        <td> <input id="btnchangePassword" type="submit" class="btnsub log" value="Update" /></td>
+                    </tr>
+                </table>
+
+                if (!String.IsNullOrEmpty(Model.SuccessMessage))
+                {
+                    <div class="green-text">
+                        @Model.SuccessMessage
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+
+
+
+@section scripts{
+
+    <script>
+        $(document).ready(function () {
+
+            $('[id*=txtNewPassword]').keyup(function () {
+                $('#result').html(checkStrength($('[id*=txtNewPassword]').val()));
+            });
+
+
+            $('[id*=btnchangePassword]').click(function () {
+                return ValidateForm();
+            });
+
+            function ValidateForm() {
+
+                var iserror = false;
+                var currentPassword = $('[id*=txtCurrentPassword]');
+                var newPassword = $('[id*=txtNewPassword]');
+                var retypeNewPassowrd = $('[id*=txtRetypeNewPassword]');
+
+                currentPassword.removeClass('error');
+                newPassword.removeClass('error');
+                retypeNewPassowrd.removeClass('error');
+
+                if (currentPassword.val().trim() == '' || typeof currentPassword.val() == "undefined") {
+                    currentPassword.addClass('error');
+                    iserror = true;
+                }
+
+                if (newPassword.val().trim() == '' || typeof newPassword.val() == "undefined") {
+                    newPassword.addClass('error');
+                    iserror = true;
+                }
+
+                if (retypeNewPassowrd.val().trim() == '' || typeof retypeNewPassowrd.val() == "undefined") {
+                    retypeNewPassowrd.addClass('error');
+                    iserror = true;
+                }
+
+                return !iserror;
+            }
+        });
+    </script>
+}
+
+
+public class ChangePasswordModel
+    {
+        [Required(ErrorMessage = "Password is required.")]
+        public string CurrentPassword { get; set; }
+
+        [DataType(DataType.Password)]
+        [Required(ErrorMessage="Confirm Password is required.")]
+        [StringLength(20, MinimumLength = 6, ErrorMessage = "Password length must be between 6 and 20.")]                
+        public string NewPassword { get; set; }
+
+        [DataType(DataType.Password)]
+        [Required(ErrorMessage = "Confirm Password is required.")]
+        [Compare("NewPassword", ErrorMessage = "Password doesn't match..")]
+        public string ConfirmPassword { get; set; }
+
+        public string SuccessMessage { get; set; }
+    }
+
+
+--CA_Update_ChangePassword 7 , test12345, test123 '10.1.17.60'
+CREATE procedure CA_Update_ChangePassword
+@customerId int,
+@OldPassword varchar(40),
+@NewPassword varchar(40),
+@UserIP varchar(25)
+as set nocount on 
+
+if exists(select * from Customer(nolock) where IsActive = 1 and CustomerId = @customerId and Password = @OldPassword)
+begin      
+	 update Customer set Password = @newpassword , UpdationIP = @UserIP , UpdatedOn = GetDate()
+     where IsActive = 1 and CustomerId = @customerId
+
+    Select 1 as IsValidPassword
+end 
+
+else
+begin
+    Select 0 as IsValidPassword
+end
+
+set nocount off
+-----------------
+
+tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt
+
+
+
+
+
+
+
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace CarDealsJapanCore.Models.Customer
+{
+    public class LoginModel
+    {
+        [Required(ErrorMessage = "Email is required")]
+        [StringLength(100, ErrorMessage = "Email is too long")]
+        public string UserName { get; set; }
+
+        [Required(ErrorMessage = "Password is required")]
+        [StringLength(100, ErrorMessage = "Password is too long")]
+        public string Password { get; set; }
+    }
+}
+
+---------------------
+
+Helper.cs
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using System.Threading.Tasks;
+using System.Web;
+
+using CarDealsJapanCore.Models.Attribute;
+
+namespace CarDealsJapanCore.Common
+{
+    public class Helper
+    {
+        public static bool SetCookie(string name, string value, double expiryMinutes)
+        {
+            try
+            {
+                HttpCookie cookie = new HttpCookie(name);
+                cookie.Value = Cryptography.Encryption(value);
+                cookie.Expires = DateTime.Now.AddMinutes(expiryMinutes);
+                HttpContext.Current.Response.Cookies.Add(cookie);
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+        public static string GetCookie(string name, bool isEncrypted = false)
+        {
+            HttpCookie cookie = HttpContext.Current.Request.Cookies[name];
+            if (cookie != null)
+                if (isEncrypted)
+                    return Cryptography.Decryption(cookie.Value);
+                else return cookie.Value;
+            return null;
+        }
+        public static void ExpireCookie(string name)
+        {
+            if (HttpContext.Current.Request.Cookies[name] != null)
+            {
+                var cookie = new HttpCookie(name);
+                cookie.Expires = DateTime.Now.AddDays(-1);
+                HttpContext.Current.Response.Cookies.Add(cookie);
+            }
+            //HttpContext.Current.Response.Cookies.Remove(name);
+
+        }
+        public static void ExpireAllCookies()
+        {
+            string[] myCookies = HttpContext.Current.Request.Cookies.AllKeys;
+            foreach (string cookie in myCookies)
+            {
+                HttpContext.Current.Response.Cookies[cookie].Expires = DateTime.Now.AddDays(-1);
+            }
+            //HttpContext.Current.Request.Cookies.Clear();
+        }
+
+
+        public static string GetRequestIP 
+        {
+            get { return HttpContext.Current.Request.UserHostAddress; }  
+        }
+
+
+        public static void ExtractCartType(string[] cartList, out string stockIds, out string dealIds)
+        {
+            stockIds = "";
+            dealIds = "";
+
+            foreach (var item in cartList)
+            {
+                if (item.Substring(0, 2).Contains("P-"))
+                {
+                    stockIds += item.Substring(2) + ",";
+                }
+
+                else if (item.Substring(0, 2).Contains("D-"))
+                {
+                    dealIds += item.Substring(2) + ",";
+                }
+            }
+
+            stockIds = stockIds.EndsWith(",") ? stockIds.Substring(0, stockIds.Length - 1) : stockIds;
+            dealIds = dealIds.EndsWith(",") ? dealIds.Substring(0, dealIds.Length - 1) : dealIds;
+        }
+
+
+        private static EnumValue GetEnumValue(object value, Type enumType)
+        {
+            MemberInfo member = enumType.GetMember(value.ToString())[0];
+
+            DisplayAttribute attribute =
+                member.GetCustomAttribute<DisplayAttribute>();
+
+            return new EnumValue
+            {
+                Id = (int)value,
+                Name = Enum.GetName(enumType, value),
+                Label = attribute.Name
+            };
+        }
+
+        public static EnumValue[] GetEnumValues(Type enumType)
+        {
+            Array values = Enum.GetValues(enumType);
+
+            EnumValue[] result = new EnumValue[values.Length];
+
+            for (int i = 0; i < values.Length; i++)
+            {
+                result[i] = GetEnumValue(
+                    values.GetValue(i),
+                    enumType);
+            }
+
+            return result;
+        }
+
+    }
+}
+
+----------------------
+
+Customer.cs
+
+
+using CarDealsJapanCore.Common;
+using CarDealsJapanCore.Models.Customer;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
+using System.Threading.Tasks;
+using System.Web;
+using System.Web.Mvc;
+
+
+namespace CarDealsJapanCore.Services
+{
+    public class Customer
+    {
+
+        public DataTable CheckLogin(string username, string password, string userIP)
+        {
+            SqlParameter[] sqlParams = {                        
+                        new SqlParameter("@Username", username),
+                        new SqlParameter("@Password", password),
+                        new SqlParameter("@UserIP", userIP)};
+
+            return DataAccess.GetDataTable(AppConfigurations.ConnectionString, "CA_Select_Login", sqlParams);
+        }
+
+        public DataTable GetCustomerType()
+        {
+            return DataAccess.GetDataTable(AppConfigurations.ConnectionString, "Select_CustomerType", null);
+        }
+        public List<SelectListItem> GetCustomerTypeList()
+        {
+            List<SelectListItem> lstData = new List<SelectListItem>();
+            foreach (DataRow item in GetCustomerType().Rows)
+            {
+                lstData.Add(new SelectListItem()
+                {
+                    Value = item["CustomerTypeId"].ToString(),
+                    Text = item["CustomerTypeName"].ToString()
+                });
+            }
+            return lstData;
+        }
+
+        public DataTable AddCustomer(string username, string email, string password, int customerTypeId, string landingUrl, string referrerUrl
+            , int signupPageId, int signupThroughId, string userAgent, int statusid, string comments)
+        {
+            SqlParameter[] sqlParams = {                        
+                new SqlParameter("@FullName", username),
+                new SqlParameter("@Email", email),
+                new SqlParameter("@Password", password),
+                new SqlParameter("@CustomerTypeId", customerTypeId),
+                new SqlParameter("@RegistrationIP", HttpContext.Current.Request.UserHostAddress),
+                new SqlParameter("@LandingUrl", landingUrl),
+                new SqlParameter("@ReferrerUrl", referrerUrl),
+                new SqlParameter("@SignupPageId", signupPageId),
+                new SqlParameter("@SignupThroughId", signupThroughId),
+                new SqlParameter("@UserAgent", userAgent),
+                new SqlParameter("@Statusid", statusid),
+                new SqlParameter("@Comments", comments)
+                        };
+
+            return DataAccess.GetDataTable(AppConfigurations.ConnectionString, "CA_Insert_Customer", sqlParams);
+        }
+
+        public DataTable UpdateCustomer(int customerId, string username, string email, string companyName)
+        {
+            SqlParameter[] sqlParams = {                        
+                new SqlParameter("@CustomerId", customerId),
+                new SqlParameter("@FullName", username),
+                new SqlParameter("@Email", email),
+                new SqlParameter("@CompanyName", companyName)
+                        };
+
+            return DataAccess.GetDataTable(AppConfigurations.ConnectionString, "CA_Update_Customer", sqlParams);
+        }
+
+        public DataTable AddCustomerContact(int customerId, string cellFlag, string cellNo, string phoneNo)
+        {
+            SqlParameter[] sqlParams = {
+                new SqlParameter("@CustomerId", customerId),
+                new SqlParameter("@CellFlag", cellFlag),
+                new SqlParameter("@CellNo", cellNo),
+                new SqlParameter("@PhoneNo", phoneNo)
+                        };
+
+            return DataAccess.GetDataTable(AppConfigurations.ConnectionString, "CA_Insert_CustomerContact", sqlParams);
+        }
+        public DataTable AddCustomerContact(int customerId, string cellFlag, string cellNo, string phoneNo, string countryFlag, int? portId)
+        {
+            SqlParameter[] sqlParams = {
+                new SqlParameter("@CustomerId", customerId),
+                new SqlParameter("@CellFlag", cellFlag),
+                new SqlParameter("@CellNo", cellNo),
+                new SqlParameter("@PhoneNo", phoneNo),
+                new SqlParameter("@CountryFlag", countryFlag),
+                new SqlParameter("@PortId", portId)
+                        };
+
+            return DataAccess.GetDataTable(AppConfigurations.ConnectionString, "CA_Insert_CustomerContact", sqlParams);
+        }
+
+        public DataTable AddCustomerAddress(int customerId, string addressId, string name, string email, string countryFlag, int? stateId, string city, string zipCode
+            , int? portId, string addressLine1, string addressLine2, string phoneNo, string cellFlag)
+        {
+            SqlParameter[] sqlParams = {                        
+                new SqlParameter("@CustomerId", customerId),
+                new SqlParameter("@AddressId", addressId),
+                new SqlParameter("@FullName", name),
+                new SqlParameter("@Email", email),
+                new SqlParameter("@CountryFlag", countryFlag),
+                new SqlParameter("@PhoneFlag", cellFlag),
+                new SqlParameter("@StateId", stateId),
+                new SqlParameter("@City", city),
+                new SqlParameter("@ZipCode", zipCode),
+                new SqlParameter("@PortId", portId),
+                new SqlParameter("@AddressLine1", addressLine1),
+                new SqlParameter("@AddressLine2", addressLine2),
+                new SqlParameter("@PhoneNumber", phoneNo)
+                        };
+
+            return DataAccess.GetDataTable(AppConfigurations.ConnectionString, "CA_Insert_Address", sqlParams);
+        }
+
+        public DataTable AddCustomerOrder(int customerId, int addressId, string stockIds)
+        {
+            SqlParameter[] sqlParams = {                        
+                new SqlParameter("@CustomerId", customerId),
+                new SqlParameter("@AddressId", addressId),
+                new SqlParameter("@StockIds", stockIds),
+                new SqlParameter("@UpdatedIP", Helper.GetRequestIP)
+                        };
+
+            return DataAccess.GetDataTable(AppConfigurations.ConnectionString, "CA_Insert_Order", sqlParams);
+        }
+
+
+        public DataTable GetCustomerDetail(int customerId)
+        {
+            SqlParameter[] sqlParams = {                        
+                        new SqlParameter("CustomerId", customerId)};
+
+            return DataAccess.GetDataTable(AppConfigurations.ConnectionString, "CA_Select_CustomerDetail", sqlParams);
+        }
+
+        public DataTable GetCustomerAddress(int customerId)
+        {
+            SqlParameter[] sqlParams = {                        
+                        new SqlParameter("CustomerId", customerId)};
+
+            return DataAccess.GetDataTable(AppConfigurations.ConnectionString, "CA_Select_CustomerAddress", sqlParams);
+        }
+
+
+        public DataTable DeleteCustomerShippingAddress(int customerId, int addressId)
+        {
+            SqlParameter[] sqlParams = {                        
+                        new SqlParameter("@CustomerId", customerId),
+                        new SqlParameter("@AddressId", addressId)               };
+
+            return DataAccess.GetDataTable(AppConfigurations.ConnectionString, "CA_Update_InactiveCustomerAddress", sqlParams);
+        }
+
+
+        public bool PasswordRecovery(string email)
+        {
+            SqlParameter[] sqlParams = {                        
+                new SqlParameter("@Email", email),
+                new SqlParameter("@PasswordRecoveryToken", Guid.NewGuid().ToString()),
+                new SqlParameter("@UserIP", HttpContext.Current.Request.UserHostAddress)
+                        };
+
+            return DataAccess.ExecuteNonQuery(AppConfigurations.ConnectionString, "CA_Insert_PasswordRecovery", sqlParams);
+        }
+
+        public DataTable PasswordRecoveryCheck(string token, string email)
+        {
+            SqlParameter[] sqlParams = {                        
+                new SqlParameter("@Email", email),
+                new SqlParameter("@PasswordRecoveryToken", token)
+                        };
+
+            return DataAccess.GetDataTable(AppConfigurations.ConnectionString, "CA_Select_PasswordRecovery", sqlParams);
+        }
+
+        public bool PasswordReset(string email, string password)
+        {
+            SqlParameter[] sqlParams = {
+                new SqlParameter("@Email", email),
+                new SqlParameter("@Password", password),
+                new SqlParameter("@UserIP", HttpContext.Current.Request.UserHostAddress)
+                        };
+
+            return DataAccess.ExecuteNonQuery(AppConfigurations.ConnectionString, "CA_Update_Password", sqlParams);
+        }
+
+        public async Task<bool> AddVisitor(VisitorModel visitorModel)
+        {
+            SqlParameter[] sqlParams = {                        
+                new SqlParameter("@LandingUrl", visitorModel.LandingUrl),
+                new SqlParameter("@ReferrerUrl", visitorModel.ReferrerUrl),
+                new SqlParameter("@UserAgent", visitorModel.UserAgent),
+                new SqlParameter("@Country", visitorModel.Country),
+                new SqlParameter("@Region", visitorModel.Region),
+                new SqlParameter("@City", visitorModel.City),
+                new SqlParameter("@Hostname", visitorModel.Hostname),
+                new SqlParameter("@IP", visitorModel.IP),
+                new SqlParameter("@Location", visitorModel.Location),
+                new SqlParameter("@PostalCode", visitorModel.PostalCode),
+                new SqlParameter("@Organization", visitorModel.Organization)
+                        };
+
+            return await DataAccess.ExecuteNonQueryAsync(AppConfigurations.ConnectionString, "Insert_Visitor", sqlParams);
+        }
+
+        public DataTable ChangePassword(int customerId, string oldPassword, string newPassword)
+        {
+            SqlParameter[] sqlParams = {                        
+                new SqlParameter("@customerId", customerId),
+                new SqlParameter("@NewPassword", newPassword),
+                new SqlParameter("@OldPassword", oldPassword),
+                new SqlParameter("@UserIP", HttpContext.Current.Request.UserHostAddress)
+                        };
+
+            return DataAccess.GetDataTable(AppConfigurations.ConnectionString, "CA_Update_ChangePassword", sqlParams);
+        }
+
+        public DataTable GetAccountInfo(int customerId)
+        {
+            SqlParameter[] sqlParams = { new SqlParameter("@customerId", customerId) };
+
+            return DataAccess.GetDataTable(AppConfigurations.ConnectionString, "CA_Select_AccountInfo", sqlParams);
+        }
+
+        public DataTable UpdateAccountInfo(int customerId, string name, string email, string cellFlag, string cellNo , string phoneFlag , string phoneNo)
+        {
+            SqlParameter[] sqlParams = {                        
+                new SqlParameter("@customerId", customerId),
+                new SqlParameter("@Name", name),
+                new SqlParameter("@Email", email),
+                new SqlParameter("@CellFlag" , cellFlag),
+                new SqlParameter("@CellNo" , cellNo),
+                new SqlParameter("@PhoneFlag" , phoneFlag),
+                new SqlParameter("@PhoneNo" , phoneNo),
+                new SqlParameter("@UserIP", HttpContext.Current.Request.UserHostAddress)
+                        };
+
+            return DataAccess.GetDataTable(AppConfigurations.ConnectionString, "CA_Update_AccountInfo", sqlParams);
+        }
+
+        public DataSet GetOrderHistory(int customerId, DateTime? from , DateTime? to , int? pageSize , int? pageNumber)
+        {
+            SqlParameter[] sqlParams = {                        
+                                   new SqlParameter("@customerId", customerId),
+                                   new SqlParameter("@PageNumber", pageNumber != 0 ? pageNumber : null ),
+                                   new SqlParameter("@PageSize", pageSize != 0 ? pageSize : null),
+                                   new SqlParameter("@From" , SqlDbType.DateTime) {Value = from.Equals(DateTime.MinValue) ? null : from } ,
+                                   new SqlParameter("@To" , SqlDbType.DateTime) {Value = to.Equals(DateTime.MinValue) ? null :  to} 
+                        };
+
+            return DataAccess.GetDataSet(AppConfigurations.ConnectionString, "CA_Select_OrderHistory", sqlParams);
+        }
+
+        public DataTable GetOrderDetailHistory(int orderId)
+        {
+            SqlParameter[] sqlParams = {                        
+                new SqlParameter("@OrderId", orderId)
+                        };
+
+            return DataAccess.GetDataTable(AppConfigurations.ConnectionString, "CA_Select_OrderDetailHistory", sqlParams);
+        }
+
+
+    }
+}
+
+
+--------------------------
+AccountController.cs
+
+
+
+using System;
+using System.Web;
+using System.Web.Mvc;
+using System.Data;
+
+using CarDealsJapanCore.Common;
+using CarDealsJapanCore.Services;
+using CarDealsJapanCore.Models.Customer;
+using CarDealsJapanCore.Models;
+using CarDealsJapanCore.Models.Product;
+
+
+
+using CaptchaMvc.HtmlHelpers;
+using Newtonsoft.Json;
+using System.Collections.Generic;
+
+namespace CarDealsJapanWeb.Controllers
+{
+    public class AccountController : Controller
+    {
+        [HttpGet]
+        public ActionResult Login(string returnUrl)
+        {
+            string cookie = Helper.GetCookie(Constants.CustomerID, true);
+            if (cookie != null)
+                return RedirectToAction("Index", "Home");
+
+            if (string.IsNullOrEmpty(returnUrl) && Request.UrlReferrer != null)
+                returnUrl = Server.UrlEncode(Request.UrlReferrer.PathAndQuery);
+
+            if (Url.IsLocalUrl(returnUrl) && !string.IsNullOrEmpty(returnUrl))
+                ViewBag.ReturnURL = returnUrl;
+
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateInput(false)]
+        [ValidateAntiForgeryToken]
+        public ActionResult Login(LoginModel loginModel, string returnUrl)
+        {
+            if (ModelState.IsValid)
+            {
+                Customer customerService = new Customer();
+
+                DataTable objDt = customerService.CheckLogin(loginModel.UserName, loginModel.Password, Request.UserHostAddress);
+                if (objDt != null && objDt.Rows.Count > 0)
+                {
+                    Helper.SetCookie(Constants.CustomerID, Convert.ToString(objDt.Rows[0]["CustomerId"]), 1440);
+                    /*
+                    HttpCookie cookieUID = new HttpCookie(Constants.CustomerID);
+                    cookieUID.Value = Cryptography.Encryption(objDt.Rows[0]["CustomerId"].ToString());
+                    cookieUID.Expires = DateTime.Now.AddDays(7);
+                    Response.Cookies.Add(cookieUID);*/
+
+                    string decodedUrl = "";
+                    if (!string.IsNullOrEmpty(returnUrl))
+                        decodedUrl = Server.UrlDecode(returnUrl);
+                    if (Url.IsLocalUrl(decodedUrl))
+                        return Redirect(decodedUrl);
+
+                    return RedirectToAction("Index", "Home");
+                }
+                else
+                {
+                    ModelState.AddModelError("", Messages.WrongCredentials);
+                }
+            }
+            return View(loginModel);
+        }
+
+        public ActionResult Logout()
+        {
+            Helper.ExpireCookie(Constants.CustomerID);
+            return RedirectToAction("Index", "Home");
+        }
+
+        public ActionResult Register(string returnUrl)
+        {
+            string cookie = Helper.GetCookie(Constants.CustomerID, true);
+            if (cookie != null)
+                return RedirectToAction("Index", "Home");
+
+            if (string.IsNullOrEmpty(returnUrl) && Request.UrlReferrer != null)
+                returnUrl = Server.UrlEncode(Request.UrlReferrer.PathAndQuery);
+
+            if (Url.IsLocalUrl(returnUrl) && !string.IsNullOrEmpty(returnUrl))
+                ViewBag.ReturnURL = returnUrl;
+
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateInput(false)]
+        [ValidateAntiForgeryToken]
+        public ActionResult Register(RegisterModel registerModel, string returnUrl)
+        {
+            if (ModelState.IsValid)
+            {
+                Customer customerService = new Customer();
+                string landingURL = Helper.GetCookie(Constants.LandingURL);
+                string referrerURL = Helper.GetCookie(Constants.ReferrerURL);
+
+                DataTable objDt = customerService.AddCustomer(registerModel.UserName, registerModel.Email, registerModel.Password
+                    , (int)CustomerType.Individual, landingURL, referrerURL, (int)SignupPage.Register
+                    , Request.Browser.IsMobileDevice ? (int)SignupThrough.Mobile : (int)SignupThrough.Web
+                    , Request.UserAgent, (int)CustomerStatus.SignupDone, string.Empty);
+
+                if (objDt != null && objDt.Rows.Count > 0)
+                {
+                    if (Convert.ToBoolean(objDt.Rows[0]["IsAlreadyRegistered"]))
+                    {
+                        ModelState.AddModelError("", Messages.EmailAlreadyExists);
+                        return View(registerModel);
+                    }
+                    else
+                    {
+                        customerService.AddCustomerContact(Convert.ToInt32(objDt.Rows[0]["CustomerId"]), registerModel.CellFlag, registerModel.CellNo, null);
+
+                        Helper.SetCookie(Constants.CustomerID, Convert.ToString(objDt.Rows[0]["CustomerId"]), 1440);
+
+                        string decodedUrl = "";
+                        if (!string.IsNullOrEmpty(returnUrl))
+                            decodedUrl = Server.UrlDecode(returnUrl);
+                        if (Url.IsLocalUrl(decodedUrl))
+                            return Redirect(decodedUrl);
+
+                        return RedirectToAction("Login", "Account");
+                    }
+                }
+            }
+            return View(registerModel);
+        }
+
+        public ActionResult PasswordRecovery()
+        {
+            PasswordRecovery passwordRecovery = new PasswordRecovery();
+            return View(passwordRecovery);
+        }
+
+        [HttpPost]
+        [ValidateInput(false)]
+        [ValidateAntiForgeryToken]
+        public ActionResult PasswordRecovery(PasswordRecovery passwordRecovery)
+        {
+            if (ModelState.IsValid)
+            {
+                if (this.IsCaptchaValid("Validate your captcha"))
+                {
+                    Customer customerService = new Customer();
+                    if (customerService.PasswordRecovery(passwordRecovery.Email))
+                    {
+                        passwordRecovery.Message = Messages.PasswordRecoveryEmail;
+                    }
+                    else
+                    {
+                        passwordRecovery.Message = Messages.EmailNotFound;
+                    }
+                }
+                else
+                    passwordRecovery.Message = Messages.CaptchaMessage;
+            }
+
+            return View(passwordRecovery);
+        }
+
+        public ActionResult PasswordRecoveryConfirm(string token, string email)
+        {
+            PasswordRecoveryConfirm passwordRecoveryConfirm = new PasswordRecoveryConfirm();
+            Customer customerService = new Customer();
+
+            passwordRecoveryConfirm.DisablePasswordChanging = false;
+            DataTable objDt = customerService.PasswordRecoveryCheck(token, email);
+            if (objDt != null && objDt.Rows.Count > 0)
+            {
+                if (Convert.ToDateTime(objDt.Rows[0]["PasswordRecoverExpiry"]) < DateTime.Now)
+                {
+                    passwordRecoveryConfirm.Message = Messages.PasswordRecoveryLinkExpired;
+                    passwordRecoveryConfirm.DisablePasswordChanging = true;
+                }
+            }
+            else
+            {
+                passwordRecoveryConfirm.Message = Messages.PasswordRecoveryWrongToken;
+                passwordRecoveryConfirm.DisablePasswordChanging = true;
+            }
+
+            return View(passwordRecoveryConfirm);
+        }
+
+        [HttpPost]
+        [ValidateInput(false)]
+        [ValidateAntiForgeryToken]
+        public ActionResult PasswordRecoveryConfirm(string token, string email, PasswordRecoveryConfirm passwordRecoveryConfirm)
+        {
+            if (ModelState.IsValid)
+            {
+                Customer customerService = new Customer();
+                passwordRecoveryConfirm.DisablePasswordChanging = false;
+                if (customerService.PasswordReset(email, passwordRecoveryConfirm.Password))
+                {
+                    passwordRecoveryConfirm.Message = Messages.PasswordHasBeenChanged;
+                    passwordRecoveryConfirm.DisablePasswordChanging = true;
+                }
+            }
+            return View(passwordRecoveryConfirm);
+        }
+
+        public ActionResult Partner()
+        {
+            PartnerModel partnerModel = new PartnerModel();
+            ProductAttribute productAttribute = new ProductAttribute();
+            Customer customer = new Customer();
+
+            partnerModel.CountryList = productAttribute.GetCountryList();
+            partnerModel.CustomerTypeList = customer.GetCustomerTypeList();
+
+            return View(partnerModel);
+        }
+
+        [HttpPost]
+        [ValidateInput(false)]
+        [ValidateAntiForgeryToken]
+        public ActionResult Partner(PartnerModel partnerModel)
+        {
+            if (ModelState.IsValid)
+            {
+                Customer customerService = new Customer();
+                string landingURL = Helper.GetCookie(Constants.LandingURL);
+                string referrerURL = Helper.GetCookie(Constants.ReferrerURL);
+
+                DataTable objDt = customerService.AddCustomer(partnerModel.UserName, partnerModel.Email, partnerModel.Password
+                     , partnerModel.CustomerType, landingURL, referrerURL, (int)SignupPage.Partner
+                     , Request.Browser.IsMobileDevice ? (int)SignupThrough.Mobile : (int)SignupThrough.Web
+                    , Request.UserAgent, (int)CustomerStatus.SignupDone, string.Empty);
+
+                if (objDt != null && objDt.Rows.Count > 0)
+                {
+                    if (Convert.ToBoolean(objDt.Rows[0]["IsAlreadyRegistered"]))
+                    {
+                        ModelState.AddModelError("", Messages.EmailAlreadyExists);
+                        return View(partnerModel);
+                    }
+                    else
+                    {
+                        customerService.AddCustomerContact(Convert.ToInt32(objDt.Rows[0]["CustomerId"]), partnerModel.CellFlag, partnerModel.CellNo, null, partnerModel.CountryFlag, partnerModel.PortCode);
+                        return RedirectToAction("ThankYou", "Account");
+                    }
+                }
+            }
+
+            ProductAttribute productAttribute = new ProductAttribute();
+            Customer customer = new Customer();
+
+            partnerModel.CountryList = productAttribute.GetCountryList();
+            partnerModel.CustomerTypeList = customer.GetCustomerTypeList();
+            return View(partnerModel);
+        }
+
+        public ActionResult ShippingAddress()
+        {
+            string cookie = Helper.GetCookie(Constants.CustomerID, true);
+            if (cookie == null)
+                return RedirectToAction("Login", "Account", new { returnUrl = Request.RawUrl });
+
+            ShippingAddressModel shippingAddressModel = new ShippingAddressModel();
+            ProductAttribute productAttribute = new ProductAttribute();
+            Customer customerService = new Customer();
+
+            DataTable objDt = customerService.GetCustomerDetail(Convert.ToInt32(cookie));
+            if (objDt != null && objDt.Rows.Count > 0)
+            {
+                shippingAddressModel.UserName = Convert.ToString(objDt.Rows[0]["FullName"]);
+                shippingAddressModel.CellFlag = Convert.ToString(objDt.Rows[0]["CellCountryFlag"]);
+            }
+
+            shippingAddressModel.AddressList = GetCustomerAddress(cookie);
+            shippingAddressModel.CountryList = productAttribute.GetCountryList();
+            return View(shippingAddressModel);
+        }
+
+        private List<Address> GetCustomerAddress(string cookie)
+        {
+            Customer customerService = new Customer();
+            List<Address> addressList = new List<Address>();
+            DataTable objDt = customerService.GetCustomerAddress(Convert.ToInt32(cookie));
+            if (objDt != null)
+            {
+                for (int i = 0; i < objDt.Rows.Count; i++)
+                {
+                    Address address = new Address();
+                    address.UserName = Convert.ToString(objDt.Rows[i]["FullName"]);
+                    address.Email = Convert.ToString(objDt.Rows[i]["Email"]);
+                    address.City = Convert.ToString(objDt.Rows[i]["City"]);
+                    address.Zip = Convert.ToString(objDt.Rows[i]["ZipCode"]);
+                    address.AddressLine1 = Convert.ToString(objDt.Rows[i]["AddressLine1"]);
+                    address.AddressLine2 = Convert.ToString(objDt.Rows[i]["AddressLine2"]);
+                    address.CellFlag = Convert.ToString(objDt.Rows[i]["CellFlag"]);
+                    address.CellDialingCode = Convert.ToString(objDt.Rows[i]["DialingCode"]);
+                    address.CellNo = Convert.ToString(objDt.Rows[i]["PhoneNumber"]);
+                    address.Country = Convert.ToString(objDt.Rows[i]["CountryName"]);
+                    address.CountryFlag = Convert.ToString(objDt.Rows[i]["CountryFlag"]);
+                    address.State = Convert.ToString(objDt.Rows[i]["StateName"]);
+                    address.Port = Convert.ToString(objDt.Rows[i]["PortName"]);
+                    address.AddressId = Convert.ToInt32(objDt.Rows[i]["AddressId"]);
+                    addressList.Add(address);
+                }
+            }
+            return addressList;
+        }
+
+        [HttpPost]
+        [ValidateInput(false)]
+        [ValidateAntiForgeryToken]
+        public ActionResult ShippingAddress(ShippingAddressModel shippingAddressModel)
+        {
+
+            string cookie = Helper.GetCookie(Constants.CustomerID, true);
+            if (cookie == null)
+                return RedirectToAction("Login", "Account", new { returnUrl = Request.RawUrl });
+
+            if (ModelState.IsValid)
+            {
+                Customer customerService = new Customer();
+                DataTable dtb = customerService.AddCustomerAddress(Convert.ToInt32(cookie), shippingAddressModel.AddressId, shippingAddressModel.UserName, null, shippingAddressModel.CountryFlag
+                    , shippingAddressModel.StateCode, shippingAddressModel.City, shippingAddressModel.Zip, shippingAddressModel.DestinationPortCode
+                    , shippingAddressModel.AddressLine1, shippingAddressModel.AddressLine2, shippingAddressModel.CellNo, shippingAddressModel.CellFlag
+                );
+
+
+                if (dtb != null && dtb.Rows.Count > 0)
+                {
+                    string stockIds, dealIds;
+                    string[] cartList = shippingAddressModel.CartCookies.Trim().Split(',');
+                    Helper.ExtractCartType(cartList, out stockIds, out dealIds);
+
+                    if (!string.IsNullOrEmpty(stockIds))
+                    {
+                        int addressId = Convert.ToInt32(dtb.Rows[0]["AddressId"]);
+                        customerService.AddCustomerOrder(Convert.ToInt32(cookie), addressId, stockIds);
+                        Helper.ExpireCookie(Constants.AddToCartCookie);
+                        return RedirectToAction("ThankYou", "Account");
+                    }
+                }
+            }
+
+            ProductAttribute productAttribute = new ProductAttribute();
+            shippingAddressModel.CountryList = productAttribute.GetCountryList();
+
+            if (!string.IsNullOrEmpty(shippingAddressModel.CountryFlag))
+            {
+                shippingAddressModel.StateList = productAttribute.GetStateList(shippingAddressModel.CountryFlag);
+            }
+
+            return RedirectToAction("ShippingAddress");
+        }
+
+        [HttpGet]
+        [ActionName("DeleteShippingAddress")]
+        public JsonResult RemoveShippingAddress(int id)
+        {
+            BaseResponseModel responseModel = new BaseResponseModel();
+            string cookie = Helper.GetCookie(Constants.CustomerID, true);
+
+            if (cookie == null)
+            {
+                RedirectToAction("Login", "Account", new { returnUrl = Request.RawUrl });
+                return Json(responseModel, JsonRequestBehavior.AllowGet);
+            }
+
+            Customer customerService = new Customer();
+            DataTable objDt = customerService.DeleteCustomerShippingAddress(Convert.ToInt32(cookie), id);
+
+            responseModel.IsSuccess = true;
+            return Json(responseModel, JsonRequestBehavior.AllowGet);
+        }
+
+        public ActionResult ThankYou()
+        {
+            return View();
+        }
+
+        public ActionResult UserNavigation(string selectedMenu)
+        {
+            ViewBag.DataTargetValue = "box-" + selectedMenu;
+            return PartialView();
+        }
+
+        [HttpGet]
+        public ActionResult AccountInfo()
+        {
+            string cookie = Helper.GetCookie(Constants.CustomerID, true);
+            if (cookie == null)
+                return RedirectToAction("Login", "Account", new { returnUrl = Request.RawUrl });
+
+            AccountInformationModel accountInfoModel = new AccountInformationModel();
+            Customer customerService = new Customer();
+            DataTable dtb = customerService.GetAccountInfo(Convert.ToInt32(cookie));
+
+            if (dtb != null && dtb.Rows.Count > 0)
+            {
+                accountInfoModel.Name = Convert.ToString(dtb.Rows[0]["FullName"]);
+                accountInfoModel.Email = Convert.ToString(dtb.Rows[0]["Email"]);
+                accountInfoModel.CellFlag = Convert.ToString(dtb.Rows[0]["CellFlag"]);
+                accountInfoModel.CellNo = Convert.ToString(dtb.Rows[0]["CellNo"]);
+                accountInfoModel.PhoneFlag = Convert.ToString(dtb.Rows[0]["PhoneFlag"]);
+                accountInfoModel.PhoneNo = Convert.ToString(dtb.Rows[0]["PhoneNo"]);
+            }
+
+            return View(accountInfoModel);
+        }
+
+        [HttpPost]
+        [ValidateInput(false)]
+        [ValidateAntiForgeryToken]
+        public ActionResult AccountInfo(AccountInformationModel accountInfoModel)
+        {
+            string cookie = Helper.GetCookie(Constants.CustomerID, true);
+            if (cookie == null)
+                return RedirectToAction("Login", "Account", new { returnUrl = Request.RawUrl });
+
+
+            if(ModelState.IsValid)
+            {
+                accountInfoModel.PhoneFlag = string.IsNullOrEmpty(accountInfoModel.PhoneNo) ? "" : accountInfoModel.PhoneFlag;
+
+                Customer customerService = new Customer();
+                DataTable dtb = customerService.UpdateAccountInfo(Convert.ToInt32(cookie), accountInfoModel.Name, accountInfoModel.Email,
+                                     accountInfoModel.CellFlag, accountInfoModel.CellNo, accountInfoModel.PhoneFlag, accountInfoModel.PhoneNo);
+
+                accountInfoModel.Message = Messages.UpdateAccountInfo;
+            }
+
+            return View(accountInfoModel);
+        }
+
+        [HttpGet]
+        public ActionResult ChangePassword()
+        {
+            string cookie = Helper.GetCookie(Constants.CustomerID, true);
+            if (cookie == null)
+                return RedirectToAction("Login", "Account", new { returnUrl = Request.RawUrl });
+
+            ChangePasswordModel cpm = new ChangePasswordModel();
+            return View(cpm);
+        }
+
+        [HttpPost]
+        [ValidateInput(false)]
+        [ValidateAntiForgeryToken]
+        public ActionResult ChangePassword(ChangePasswordModel requestModel)
+        {
+            string cookie = Helper.GetCookie(Constants.CustomerID, true);
+            if (cookie == null)
+                return RedirectToAction("Login", "Account", new { returnUrl = Request.RawUrl });
+
+            if (ModelState.IsValid)
+            {
+                Customer customerService = new Customer();
+                DataTable dtb = customerService.ChangePassword(Convert.ToInt32(cookie), requestModel.CurrentPassword,
+                                   requestModel.NewPassword);
+
+                if (dtb != null && dtb.Rows.Count > 0)
+                {
+                    if (Convert.ToBoolean(dtb.Rows[0]["IsValidPassword"]))
+                    {
+                        requestModel.SuccessMessage = Messages.PasswordHasBeenChanged;
+                    }
+
+                    else
+                    {
+                        ModelState.AddModelError("", Messages.ChangePassword);
+                    }
+                }
+            }
+            return View(requestModel);
+        }
+
+        [HttpGet]
+        public ActionResult OrderHistory()
+        {
+            string cookie = Helper.GetCookie(Constants.CustomerID, true);
+            if (cookie == null)
+                return RedirectToAction("Login", "Account", new { returnUrl = Request.RawUrl });
+
+            return View();
+        }
+
+        [HttpPost]
+        [ActionName("GetOrderHistory")]
+        public JsonResult OrderHistory(OrderHistoryRequestModel orderHistoryRequestModel)
+        {
+            OrderHistoryResponseModel orderHistoryModel = new OrderHistoryResponseModel();
+
+            string cookie = Helper.GetCookie(Constants.CustomerID, true);
+            if (cookie == null)
+            {
+                RedirectToAction("Login", "Account", new { returnUrl = Request.RawUrl });
+                return Json(orderHistoryModel, JsonRequestBehavior.AllowGet);
+            }
+
+            Customer customer = new Customer();
+            DataSet dataSet = customer.GetOrderHistory(Convert.ToInt32(cookie) , orderHistoryRequestModel.FromDate , orderHistoryRequestModel.ToDate, 
+                                                       orderHistoryRequestModel.PageSize , orderHistoryRequestModel.PageNumber);
+
+            if (dataSet != null)
+            {
+                if (dataSet.Tables[0] != null && dataSet.Tables[0].Rows.Count > 0 &&
+                    dataSet.Tables[1] != null && dataSet.Tables[1].Rows.Count > 0)
+                {
+                    foreach (DataRow item in dataSet.Tables[0].Rows)
+                    {
+                        orderHistoryModel.OrderHistoryList.Add(new OrderHistoryModel()
+                        {
+                            OrderId = Convert.ToInt32(item["OrderId"]),
+                            OrderNo = Convert.ToString(item["OrderUid"]),
+                            Date = Convert.ToString(item["CreatedOn"]),
+                            Status = Convert.ToString(item["Status"]),
+                            Amount = Convert.ToDecimal(item["Amount"]),
+                            Quantity = Convert.ToInt32(item["Quantity"])
+                        });
+                    }
+
+                    orderHistoryModel.TotalRecords = Convert.ToInt32(dataSet.Tables[1].Rows[0]["TotalResults"]);
+                    orderHistoryModel.IsSuccess = true;
+                }
+            }
+            return Json(orderHistoryModel, JsonRequestBehavior.AllowGet);
+        }
+
+        [HttpGet]
+        [ActionName("GetOrderHistoryDetail")]
+        public JsonResult OrderDetailHistory(int id)
+        {
+            OrderDetailHistoryResponseModel orderDetailModel = new OrderDetailHistoryResponseModel();
+            string cookie = Helper.GetCookie(Constants.CustomerID, true);
+            if (cookie == null)
+            {
+                RedirectToAction("Login", "Account", new { returnUrl = Request.RawUrl });
+                return Json(orderDetailModel, JsonRequestBehavior.AllowGet);
+            }
+
+            Customer customer = new Customer();
+            DataTable dataTbl = customer.GetOrderDetailHistory(id);
+
+            if (dataTbl != null && dataTbl.Rows.Count > 0)
+            {
+                foreach (DataRow item in dataTbl.Rows)
+                {
+                    orderDetailModel.ProductList.Add(new ProductModel(){
+
+                        Make = item["MakeName"].ToString(),
+                        Model = item["ModelName"].ToString(),
+                        Price = Convert.ToDecimal(item["Price"]),
+                        ProductionYear = Convert.ToInt32(item["ProductionYear"]) + "/" + item["ProductionMonth"].ToString(),
+                        StockId = item["StockId"].ToString(),
+                        ProductImage = item["ProductImage"].ToString()
+                    });
+                }
+
+                orderDetailModel.IsSuccess = true;
+            }
+
+            return Json(orderDetailModel, JsonRequestBehavior.AllowGet);
+        }
+
+    }
+}
+
+
+---------------------------
+
+Helper.js
+
+
+var Helper = {};
+Helper.ServicePath = '';
+Helper.SelectedCountry = '';
+Helper.AjaxCall = {};
+Helper.Methods = {};
+Helper.Cart = {};
+
+
+SetBasePath = function (domainType) {
+
+    var basePath = domainType == undefined ? Helper.ServicePath : '';
+    return basePath
+}
+
+
+Helper.AjaxCall.GetCall = function (uri, data, onSuccess, onError, domainType) {
+
+    var req = $.ajax({
+        url: SetBasePath(domainType) + uri,
+        async: true,
+        type: 'GET',
+        cache: false,
+        data: data,
+        dataType: 'json',
+        contentType: 'application/json; charset=utf-8',
+        crossDomain: true,
+        success: function (data) {
+            if (onSuccess) {
+                onSuccess(data);
+            }
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            if (onError) {
+                onError(data);
+            }
+        }
+    });
+
+    return req;
+};
+
+
+Helper.AjaxCall.GetCallSync = function (uri, data, onSuccess, onError, domainType) {
+    var req = $.ajax({
+        url: SetBasePath(domainType) + uri,
+        async: false,
+        type: 'GET',
+        cache: false,
+        data: data,
+        datatype: 'json',
+        contenttype: 'application/json; charset=utf-8',
+        crossDomain: true,
+        success: function (data) {
+            if (onSuccess) {
+                onSuccess(data);
+            }
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            if (onError) {
+                onError(data);
+            }
+        }
+    });
+
+    return req;
+};
+Helper.AjaxCall.PostCall = function (uri, data, onSuccess, onError) {
+
+    var req = $.ajax({
+        url: Helper.ServicePath + uri,
+        async: true,
+        type: 'POST',
+        cache: false,
+        data: data,
+        crossDomain: true,
+        success: function (data) {
+            if (onSuccess) {
+                onSuccess(data);
+            }
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            if (onError) {
+                onError(data);
+            }
+        }
+    });
+
+    return req;
+};
+Helper.AjaxCall.PostCallSync = function (uri, data, onSuccess, onError) {
+
+    var req = $.ajax({
+        url: Helper.ServicePath + uri,
+        async: false,
+        type: 'POST',
+        cache: false,
+        data: data,
+        contentType: 'application/json;',
+        crossDomain: true,
+        success: function (data) {
+            if (onSuccess) {
+                onSuccess(data);
+            }
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            if (onError) {
+                onError(data);
+            }
+        }
+    });
+
+    return req;
+};
+
+Helper.Methods.GetParameterByName = function (name) {
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+        results = regex.exec(location.search);
+    return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
+Helper.Methods.SetCookie = function (cname, cvalue, exseconds) {
+    var d = new Date();
+    d.setTime(d.getTime() + (exseconds * 1000));
+    var expires = "expires=" + d.toUTCString();
+    document.cookie = cname + "=" + cvalue + ";path=/; " + expires;
+}
+
+Helper.Methods.GetCookie = function (name) {
+
+    if (document.cookie.length > 0) {
+        begin = document.cookie.indexOf(name + "=");
+        if (begin != -1) {
+            begin += name.length + 1;
+            end = document.cookie.indexOf(";", begin);
+            if (end == -1) end = document.cookie.length;
+            return unescape(document.cookie.substring(begin, end));
+        }
+    }
+    return null;
+}
+
+
+Helper.Methods.IsProductExistInCookie = function (cookieName, stockIdToCheck, cartType) {
+
+    var cookieValue = Helper.Methods.GetCookie(cookieName);
+    stockIdToCheck = cartType == 1 ? ("P-" + stockIdToCheck) : ("D-" + stockIdToCheck);
+
+    if (cookieValue != null) {
+        var stockIds = cookieValue.split(",");
+        var index = $.inArray(stockIdToCheck, stockIds)
+        if (index != -1) {
+            return true;
+        }
+
+        return false;
+    }
+
+    return false;
+}
+
+Helper.Methods.ValidateEmail = function (email) {
+    var regExp = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    return regExp.test(email);
+}
+Helper.Methods.VisitorLog = function () {
+
+    if (Helper.Methods.GetCookie("country") == null || Helper.Methods.GetCookie("countrysearch") == null) {
+
+        var data = {};
+        Helper.AjaxCall.GetCallSync('https://ipinfo.io/json', data, function (response) {
+            data.LandingUrl = document.URL;
+            data.ReferrerUrl = document.referrer;
+            data.UserAgent = typeof (jQuery.browser) != "undefined" ? Object.keys(jQuery.browser)[0] : "";
+            data.Country = response.country;
+            data.Region = response.region;
+            data.City = response.city;
+            data.Hostname = response.hostname;
+            data.IP = response.ip;
+            data.Location = response.loc;
+            data.PostalCode = response.postal;
+            data.Organization = response.org;
+
+            Helper.Methods.SetCookie("country", response.country, 86400); /*1 day expiry*/
+            Helper.Methods.SetCookie("countrysearch", response.country, 86400); /*1 day expiry*/
+
+            if (document.URL != null)
+                Helper.Methods.SetCookie("landingURL", document.URL, 86400);
+            if (document.referrer != null)
+                Helper.Methods.SetCookie("referrerURL", document.referrer, 86400);
+            Helper.AjaxCall.PostCall('Account/Visitor', data, function (response) {
+            });
+        }, function (error) { }, RequestDomainEnum.ThirdParty);
+
+    }
+}
+
+Helper.Cart.Remove = function (value) {
+
+    var d = new Date();
+    d.setTime(d.getTime() + (30 * 24 * 60 * 60 * 1000));
+    var expires = "expires=" + d.toUTCString();
+    var cookieValue = Helper.Methods.GetCookie('stockid')
+
+    if (cookieValue != null) {
+
+        var stockIds = cookieValue.split(",");
+        var index = $.inArray(value, stockIds)
+        if (index == -1) {
+            return;
+        }
+
+        stockIds.splice(index, 1);
+
+        if (stockIds.length <= 0) {
+            //delete cookie
+            document.cookie = "stockid=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            Helper.Cart.Refresh();
+            return;
+        }
+
+        var newCookie = "";
+        for (var i = 0; i < stockIds.length; i++) {
+
+            newCookie = newCookie + stockIds[i] + (i + 1 == stockIds.length ? "" : ",");
+        }
+
+        document.cookie = 'stockid' + "=" + newCookie + ";path=/;" + expires;
+        Helper.Cart.Refresh();
+    }
+}
+Helper.Cart.Add = function (value, cartType) {
+
+    value = cartType == 1 ? ("P-" + value) : ("D-" + value);
+
+    var d = new Date();
+    d.setTime(d.getTime() + (30 * 24 * 60 * 60 * 1000));
+    var expires = "expires=" + d.toUTCString();
+    var cookieValue = Helper.Methods.GetCookie('stockid');
+
+    if (cookieValue != null) {
+        var stockIds = cookieValue.split(",");
+        var index = $.inArray(value, stockIds)
+        if (index != -1) {
+            return;
+        }
+
+        var newCookie = cookieValue + "," + value;
+        document.cookie = 'stockid' + "=" + newCookie + ";path=/;" + expires;
+        Helper.Cart.Refresh();
+        return;
+    }
+
+    document.cookie = 'stockid' + "=" + value + ";path=/;" + expires;
+    Helper.Cart.Refresh();
+}
+Helper.Cart.Refresh = function () {
+    var cart = Helper.Methods.GetCookie("stockid");
+    if (cart != null && cart != '') {
+        var itemCount = cart.split(",").length;
+        $('#countShoppingCart').html(itemCount);
+        $('#viewCart').html("You Have <strong>" + itemCount + " Item's</strong> In Your Cart.");
+        $('.flyout-cart').hide();
+        $('.cart-ul').show();
+    }
+    else {
+        $('#countShoppingCart').html("0");
+        $('.flyout-cart').show();
+        $('.cart-ul').hide();
+    }
+}
+
+var formatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0, 
+});
+
+var japaneseFormat = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'JPY',
+    minimumFractionDigits: 0,
+});
+
+
+Helper.Methods.VisitorLog();
+
+---------------------------------
+
+using System.ComponentModel.DataAnnotations;
+
+namespace CarDealsJapanCore.Models.Customer
+{
+    public class RegisterModel
+    {
+
+        [Required(ErrorMessage = "Name is required")]
+        [StringLength(100, ErrorMessage = "Name is too long")]
+        public string UserName { get; set; }
+
+        [Required(ErrorMessage = "Email is required")]
+        [StringLength(100, ErrorMessage = "Email is too long")]
+        public string Email { get; set; }
+
+        [Required(ErrorMessage = "Password is required")]
+        [StringLength(20, MinimumLength = 6, ErrorMessage = "Password length must be between 6 and 20.")]                
+        public string Password { get; set; }
+
+        public string CellFlag { get; set; }
+
+        [Required(ErrorMessage = "Phone is required")]
+        [StringLength(100, ErrorMessage = "Phone Number is too long")]
+        public string CellNo { get; set; }
+    }
+}
+
+
+-----------------
+[VisitorId] [int] IDENTITY(1,1) NOT NULL,
+	[LandingUrl] [nvarchar](2000) NULL,
+	[ReferrerUrl] [nvarchar](2000) NULL,
+	[UserAgent] [nvarchar](200) NULL,
+	[Country] [varchar](20) NULL,
+	[Region] [varchar](100) NULL,
+	[City] [varchar](100) NULL,
+	[Hostname] [nvarchar](200) NULL,
+	[IP] [varchar](20) NULL,
+	[Location] [varchar](100) NULL,
+	[PostalCode] [varchar](20) NULL,
+	[Organization] [nvarchar](400) NULL,
+	[CreatedOn] [datetime] 
+
+--------------------
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace CarDealsJapanCore.Models.Customer
+{
+    public class PasswordRecovery
+    {
+        [Required(ErrorMessage = "Email is required")]
+        [StringLength(100, ErrorMessage = "Email is too long")]
+        public string Email { get; set; }
+
+        public string Message { get; set; }
+    }
+}
+
+
+
+CREATE Procedure CA_Insert_PasswordRecovery
+@Email nvarchar(200)
+,@PasswordRecoveryToken nvarchar(100)
+,@UserIP varchar(20)
+as begin
+
+if exists(select * from Customer(nolock) where Email = @Email and IsActive = 1)
+begin
+
+update Customer
+set PasswordRecoveryToken = @PasswordRecoveryToken
+,PasswordRecoverExpiry = dateadd(day,1,getdate())
+,UpdatedOn = getdate()
+,UpdationIP = @UserIP
+where Email = @Email
+and IsActive = 1
+
+end
+
+end
+
+
+
+
+
+
+--------------
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Web;
+
+namespace CarDealsJapanCore.Common
+{
+    public class Constants
+    {
+        public const string CustomerID = "c_id";
+        public const string LandingURL = "landingURL";
+        public const string ReferrerURL = "referrerURL";
+        public const string AddToCartCookie = "stockid";
+
+        public static bool IsAjaxRequestAccept
+        {
+            get
+            {
+                //Uri url = HttpContext.Current.Request.UrlReferrer;
+                //if (url != null)
+                //    return AppConfigurations.Host.Contains(url.Host);
+
+                return true;
+            }
+        }
+    }
+}
+
+-------------
+
+using System;
+using System.Security.Cryptography;
+using System.Text;
+
+namespace CarDealsJapanCore.Common
+{
+
+    public class Cryptography
+    {
+        public static string Encryption(string plainText)
+        {
+            return Encrypt(plainText, true);
+        }
+
+        public static string Decryption(string encryptedText)
+        {
+            return Decrypt(encryptedText, true);
+        }
+
+        private static string Encrypt(string plainText, bool useHashing)
+        {
+            byte[] keyArray;
+            byte[] toEncryptArray = UTF8Encoding.UTF8.GetBytes(plainText);
+
+            string key = AppConfigurations.EncryptionKey;
+            //If hashing use get hashcode regards to your key
+            if (useHashing)
+            {
+                MD5CryptoServiceProvider hashmd5 = new MD5CryptoServiceProvider();
+                keyArray = hashmd5.ComputeHash(UTF8Encoding.UTF8.GetBytes(key));
+                //Always release the resources and flush data of the Cryptographic service provide.
+
+                hashmd5.Clear();
+            }
+            else
+                keyArray = UTF8Encoding.UTF8.GetBytes(key);
+
+            TripleDESCryptoServiceProvider tdes = new TripleDESCryptoServiceProvider();
+            //set the secret key for the tripleDES algorithm
+            tdes.Key = keyArray;
+            //mode of operation. there are other 4 modes.
+            //We choose ECB(Electronic code Book)
+            tdes.Mode = CipherMode.ECB;
+            //padding mode(if any extra byte added)
+
+            tdes.Padding = PaddingMode.PKCS7;
+
+            ICryptoTransform cTransform = tdes.CreateEncryptor();
+            //transform the specified region of bytes array to resultArray
+            byte[] resultArray =
+              cTransform.TransformFinalBlock(toEncryptArray, 0,
+              toEncryptArray.Length);
+            //Release resources held by TripleDes Encryptor
+            tdes.Clear();
+            //Return the encrypted data into unreadable string format
+            return Convert.ToBase64String(resultArray, 0, resultArray.Length);
+        }
+        private static string Decrypt(string encryptedText, bool useHashing)
+        {
+            byte[] keyArray;
+            //get the byte code of the string
+
+            byte[] toEncryptArray = Convert.FromBase64String(encryptedText);
+
+            string key = AppConfigurations.EncryptionKey;
+
+            if (useHashing)
+            {
+                //if hashing was used get the hash code with regards to your key
+                MD5CryptoServiceProvider hashmd5 = new MD5CryptoServiceProvider();
+                keyArray = hashmd5.ComputeHash(UTF8Encoding.UTF8.GetBytes(key));
+                //release any resource held by the MD5CryptoServiceProvider
+
+                hashmd5.Clear();
+            }
+            else
+            {
+                //if hashing was not implemented get the byte code of the key
+                keyArray = UTF8Encoding.UTF8.GetBytes(key);
+            }
+
+            TripleDESCryptoServiceProvider tdes = new TripleDESCryptoServiceProvider();
+            //set the secret key for the tripleDES algorithm
+            tdes.Key = keyArray;
+            //mode of operation. there are other 4 modes. We choose ECB(Electronic code Book)
+
+            tdes.Mode = CipherMode.ECB;
+            //padding mode(if any extra byte added)
+            tdes.Padding = PaddingMode.PKCS7;
+
+            ICryptoTransform cTransform = tdes.CreateDecryptor();
+            byte[] resultArray = cTransform.TransformFinalBlock(
+                                 toEncryptArray, 0, toEncryptArray.Length);
+            //Release resources held by TripleDes Encryptor                
+            tdes.Clear();
+            //return the Clear decrypted TEXT
+            return UTsF8Encoding.UTF8.GetString(resultArray);
+        }
+    }
+}
+
+
+
+
+
+
+
