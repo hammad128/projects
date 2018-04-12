@@ -1,0 +1,790 @@
+<%@ Page Language="C#" MasterPageFile="~/PayrollReports/PayRoll.master" AutoEventWireup="true"
+    CodeFile="MarkStaffAttendance.aspx.cs" Inherits="PayrollReports_MarkStaffAttendance"
+    Title="Mark Staff Attendance" %>
+
+<asp:Content ID="Content1" ContentPlaceHolderID="cplHead" runat="Server">
+    <title>Mark Staff Attendance</title>
+    <link href="../assets/includes/jquery-ui.css" rel="stylesheet" />
+    <script type="text/javascript" src="../assets/js/jquery.ui.timepicker.js"></script>
+    <link href="../assets/js/jquery.ui.timepicker.css" rel="stylesheet" />
+
+    <style type="text/css">
+        .dataReportDiv table tbody td {
+            text-align: left;
+        }
+
+        .requiredError {
+            border: 1px solid red;
+        }
+
+        .generateButtonTable input[type=submit] {
+            width: -webkit-fill-available;
+            margin-top: 1px;
+        }
+
+        .filterdiv, .buttonDiv {
+            display: inline-block;
+            /*border: 1px solid green;*/
+        }
+
+        .filterdiv {
+            width: 66%;
+        }
+
+        .UserImage {
+            width: 40px;
+            height: 40px;
+        }
+
+        #headerPanel {
+            margin: 0 auto;
+            margin-top: 20px;
+            width: 90%;
+        }
+
+        .errorMessage {
+            width: 15%;
+            margin: 0 auto;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .hide {
+            display: none;
+        }
+
+        .error {
+            border-color: #d89a9a !important;
+            border: 2px solid #d89a9a !important;
+        }
+    </style>
+    <script type="text/javascript">
+
+        function validation() {
+            var FromDate = new Date($('[id$="txtFromDate"]').val());
+            var ToDate = new Date($('[id$="txtToDate"]').val());
+            if (FromDate > ToDate) {
+                alert("To date should not be less than From date.");
+                return false;
+            }
+            return true;
+        }
+        function ShowHideDayDetails(trRow, img) {
+            if (img.alt == "Expand") {
+                img.src = "../assets/Images/expand-gray.gif"
+                img.alt = "Collapse"
+                trRow.style.display = 'none';
+            }
+            else {
+                img.src = "../assets/Images/collapse-gray.gif"
+                img.alt = "Expand"
+                trRow.style.display = 'table-row';
+            }
+            return false;
+        }
+
+        $(window).scroll(function () {
+            var XCrollPositon = $('#xnav').offset();
+            XCrollPositon = XCrollPositon.top + 30;
+            var varhtml = "<table cellspacing='0'>" + $('#xnav').html() + "</table>";
+            var cnt = 0;
+            if ($(this).scrollTop() >= XCrollPositon && $('#xnavSc').css('display') == "none") {
+                $('#xnavSc').html(varhtml);
+
+                $('#xnav').find('th').each(function () {
+                    $($('#xnavSc').find('th')[cnt]).attr("style", "width:" + $(this).css('width'));
+                    cnt++;
+                });
+
+                $('#xnavSc').show();
+            }
+            else if ($(this).scrollTop() < XCrollPositon) {
+                $('#xnavSc').hide();
+            }
+        });
+
+        function diableUserName() {
+            var username = $('[id*="txtUser"]');
+            if ($('[id*="ddlUsers"]').val() == "-1") {
+                username.removeAttr("disabled");
+            }
+            else {
+                username.val('');
+                username.attr("disabled", "disabled");
+            }
+        }
+
+        $(document).ready(function () {
+            $('.CalendarControl').each(function () {
+                Calendar.setup({
+                    inputField: $(this).attr('id'),
+                    ifFormat: "M dd, y",
+                    button: $(this).next('img').attr('id'),
+                    singleClick: true
+                });
+            });
+
+            $('.customCalendar').each(function () {
+                Calendar.setup({
+                    inputField: $(this).attr('id'),
+                    ifFormat: "M dd, y",
+                    button: $(this).next('img').attr('id'),
+                    singleClick: true,
+                    disableFunc: function (date) {
+                        var min = new Date($('[id$="txtFromDate"]').val());
+                        //  var ToDate = new Date($('[id$="txtToDate"]').val());
+                        //  var max = new Date();
+                        //  var min = new Date(max.getFullYear(), max.getMonth() - 2, 23, 0, 0, 0, 0);
+                        return (date < min);
+                    }
+                });
+            });
+
+            //Diable Username
+            diableUserName();
+            $('[id*="ddlUsers"]').change(function () {
+                diableUserName();
+            });
+        });
+
+        function IsNumeric(evt) {
+            var theEvent = evt || window.event;
+            var rv = true;
+            //var key = theEvent.keyCode || theEvent.which;
+            var key = (typeof theEvent.which === 'undefined') ? theEvent.keyCode : theEvent.which;
+            if (key && (key !== 8)) {
+                var keychar = String.fromCharCode(key);
+                var keycheck = /[0-9]/;
+                if (!keycheck.test(keychar)) {
+                    rv = theEvent.returnValue = false;//for IE
+                    if (theEvent.preventDefault) theEvent.preventDefault();//Firefox
+                }
+            }
+            return rv;
+        }
+
+    </script>
+
+    <script type="text/javascript">
+        function ToggleSelectAll(obj) {
+            var frm = obj.parentNode.parentNode.parentNode.parentNode.getElementsByTagName('input');
+            for (var i = 0; i < frm.length; i++) {
+                if (frm[i].type == 'checkbox') {
+                    if (obj.checked)
+                        frm[i].checked = true;
+                    else
+                        frm[i].checked = false;
+                }
+            }
+        }
+        function Validate() {
+            var Count = 0;
+            $(".rptRow").each(function () {
+                if ($($(this).find('[id*="chkSelect"]')[0]).prop("checked"))
+                    Count++;
+            });
+            var Status = Count > 0;
+            if (!Status) {
+                alert("Please select at least one user.");
+                return false;
+            }
+            else {
+                var result = confirm('Are you sure?');
+                if (result) {
+                    return true;
+                }
+                else {
+                    return false;
+                }
+            }
+        }
+        function validateForm(evt) {
+            var isComments = false;
+            var comments = $(evt).parents('.rptRow').find('.Commentstxt').val().trim();
+
+            if (comments == "") {
+                $(evt).parents('.rptRow').find('.Commentstxt').addClass('error');
+                isComments = false;
+            } else {
+                $(evt).parents('.rptRow').find('.Commentstxt').removeClass('error');
+                isComments = true;
+            }
+
+            if (isComments) {
+                return confirm('Are you sure?');
+            }
+            else {
+                return false;
+            }
+        }
+        $(document).ready(function () {
+            $('.Commentstxt').keyup(function (e) {
+                //check max lengh
+                var text = $(this).val();
+                var maxlength = $(this).data('maxlength');
+
+                if (maxlength > 0) {
+                    $(this).val(text.substr(0, maxlength));
+                }
+            });
+        });
+
+    </script>
+
+</asp:Content>
+<asp:Content ID="Content2" ContentPlaceHolderID="cplBody" runat="Server">
+    <h1>Mark Staff Attendance</h1>
+    <div class="tabcon" align="center">
+        <table width="90%" border="0" cellspacing="0" cellpadding="0">
+            <tr class="header_grid">
+                <td align="left" width="25%">Date</td>
+                <td align="left" width="15%">Department</td>
+                <td align="left" width="15%">Job Role</td>
+                <td align="left" width="15%">User</td>
+                <td align="left" width="15%">Name</td>
+            </tr>
+            <tr class="alter">
+                <td align="left">
+                    <asp:TextBox ID="txtFromDate" runat="server" CssClass="CalendarControl customCalendar" Width="80px"></asp:TextBox>
+                    <asp:Image ID="imgFromDate" runat="server" ImageUrl="/assets/images/calendar.gif" />
+                    <b>To</b>
+                    <asp:TextBox ID="txtToDate" runat="server" CssClass="CalendarControl customCalendar" Width="80px"></asp:TextBox>
+                    <asp:Image ID="imgToDate" runat="server" ImageUrl="/assets/images/calendar.gif" />
+                </td>
+                <td align="left">
+                    <asp:DropDownList ID="ddlDepartment" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlDepartment_SelectedIndexChanged"
+                        Style="width: 95%;">
+                    </asp:DropDownList>
+                </td>
+                <td align="left">
+                    <asp:DropDownList ID="ddlJobRole" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlJobrole_SelectedIndexChanged"
+                        Style="width: 95%;">
+                    </asp:DropDownList>
+                </td>
+                <td align="left">
+                    <asp:DropDownList ID="ddlUsers" runat="server" Style="width: 95%;">
+                    </asp:DropDownList>
+                </td>
+                <td align="left">
+                    <asp:TextBox ID="txtUser" runat="server" Style="width: 95%;">
+                    </asp:TextBox>
+                </td>
+            </tr>
+        </table>
+        <div align="right" style="margin-top: 10px;">
+            <asp:Button ID="btnSearch" runat="server" CssClass="btn-active" Text="Search" OnClick="btnSearch_Click"
+                OnClientClick="return validation();" />
+        </div>
+    </div>
+    <div align="center">
+        <asp:Label ID="lblError" runat="server" CssClass="errorlabel"></asp:Label>
+        <asp:Label ID="lblSuccess" runat="server" CssClass="successlabel"></asp:Label>
+        <asp:HiddenField ID="hdnStartDate" runat="server" Value="" />
+        <asp:HiddenField ID="hdnEndDate" runat="server" Value="" />
+        <asp:HiddenField ID="hdnIsOfficerPayrollCalculated" runat="server" Value="" />
+        <asp:HiddenField ID="hdnIsStaffPayrollCalculated" runat="server" Value="" />
+        <asp:HiddenField ID="hdnIsSupportUser" runat="server" Value="" />
+    </div>
+    <div class="tabcon" align="center">
+        <div id="xnavSc" style="top: 0; position: fixed; display: none;">
+        </div>
+        <table style="width: 20% !important; float: left; margin-bottom: 30px;">
+            <tr>
+                <td style="font-weight: bold">LEGENDS</td>
+            </tr>
+            <tr style="background-color: #c0ffa6;">
+                <td>Approved Day Allowance</td>
+            </tr>
+            <tr style="background-color: #fdeeb6;">
+                <td>Off Day</td>
+            </tr>
+            <%--<tr style="background-color: #d6effc;">
+                <td>Over Time</td>
+            </tr>--%>
+        </table>
+        <br />
+        <br />
+        <div class="dataReportDiv">
+            <asp:Repeater ID="rptUser" runat="server" OnItemDataBound="rptUser_ItemDataBound">
+                <HeaderTemplate>
+                    <table align="center" cellpadding="5" cellspacing="0" width="90%">
+                        <thead>
+                            <tr class="h-shad11" align="center">
+                                <td class="title bol bob bot" width="5%">
+                                </td>
+                                <td colspan="2" class="title bol bob bot" width="30%" align="left">Employee</td>
+                                <td class="title bol bob bot" width="10%">Joining</td>
+                                <td class="title bol bob bot" width="10%">Leave</td>
+                                <td class="title bol bob bot" width="10%">Memos</td>
+                                <td class="title bol bot bob" width="15%">Attendance</td>
+                            </tr>
+                        </thead>
+                </HeaderTemplate>
+                <ItemTemplate>
+                    <tr id="trRow" runat="server" class="dgOutbox_Item TotalRow" align="center">
+                        <td style="width: 5%;" class="bob bol text">
+                            <img runat="server" id="imgExpandCollapse" src="../assets/images/expand-gray.gif"
+                                alt="collapse" style="cursor: pointer;" />
+                            <asp:Label ID="lblSNo" runat="server" Text="<%# ((RepeaterItem)Container).ItemIndex + 1 %>"></asp:Label>
+                        </td>
+                        <td style="width: 5%;" class="bob bol text">
+                            <asp:Image CssClass="UserImage" ID="UserImage" runat="server" />
+                        </td>
+                        <td style="width: 20%;" class="bob text" align="left">
+                            <asp:HiddenField ID="hdnUserCode" runat="server" Value='<%# Eval("UserCode") %>' />
+                            <asp:Label ID="lblUserCode" runat="server" CssClass="text" Text='<%# Eval("UserCode") %>'></asp:Label><br />
+                            <asp:Label ID="lblUserName" runat="server" CssClass="text" Text='<%# Eval("UserName") %>'></asp:Label><br />
+                            <asp:Label ID="lblJobrole" runat="server" CssClass="text" Text='<%# Eval("JobRole_Description") %>'></asp:Label>
+                        </td>
+                        <td style="width: 10%;" class="bol bob text">
+                            <%# DataBinder.Eval(Container.DataItem ,"Grade") %>
+                            <br />
+                            <%# DataBinder.Eval(Container.DataItem ,"JoiningDate" , "{0:MMM dd, yyyy}") %>
+                            <br />
+                            <asp:Label ID="lblLocation" runat="server" CssClass="text" Text='<%# Eval("Location") %>'></asp:Label>
+                        </td>
+                        <td style="width: 15%;" class="bol bob text">Paid Leaves: <%# DataBinder.Eval(Container.DataItem ,"PaidLeaves") %><br />
+                            Unpaid Leaves: <%# DataBinder.Eval(Container.DataItem ,"UnpaidLeaves") %>
+                        </td>
+                        <td style="width: 15%;" class="bol bob text">Show Cause: <%# DataBinder.Eval(Container.DataItem ,"ShowCause") %><br />
+                            Negative Memo: <%# DataBinder.Eval(Container.DataItem ,"NegativeMemo") %>
+                            <br />
+                            Positive Memos: <%# DataBinder.Eval(Container.DataItem ,"PositiveMemo") %>
+                        </td>
+                        <td style="width: 15%;" class="bol bob text">DayAllowance: <%# DataBinder.Eval(Container.DataItem ,"DayAllowance") %><br />
+                            OverTimeHours: <%# DataBinder.Eval(Container.DataItem ,"OverTimeHours") %>
+                        </td>
+                    </tr>
+                    <tr id="trFunction" runat="server" style="display: none;">
+                        <td colspan="8" style="padding: 0; margin: 0;">
+                            <asp:Repeater ID="rptFunction" runat="server" OnItemDataBound="rptFunction_ItemDataBound" OnItemCommand="rptFunction_ItemCommand">
+                                <HeaderTemplate>
+                                    <table width="90%" border="0" cellspacing="0" cellpadding="0">
+                                        <thead id="xnav">
+                                            <tr id="fixed-header" class="header_grid">
+                                                <th width="3%">
+                                                    <input type="checkbox" name="checkbox" id="chckAll" onclick="ToggleSelectAll(this);" />
+                                                </th>
+                                                <th>Name
+                                                </th>
+                                                <th>Date
+                                                </th>
+                                                <th>Time In
+                                                </th>
+                                                <th>Time Out
+                                                </th>
+                                                <%--<th>OverTime
+                                                </th>--%>
+                                                <th>Day Allowance
+                                                </th>
+                                                <th>Comments
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                </HeaderTemplate>
+                                <ItemTemplate>
+                                    <tr id="trDetails" class="rptRow" align="center" runat="server">
+                                        <td>
+                                            <asp:CheckBox ID="chkSelect" runat="server" />
+                                            <%# ((RepeaterItem)Container).ItemIndex + 1 %>
+                                            <asp:HiddenField ID="Sheet_Code" runat="server" Value='<%# Eval("Sheet_Code") %>' />
+                                            <asp:HiddenField ID="hdn_userCode" runat="server" Value='<%# Eval("UserID") %>' />
+                                            <asp:HiddenField ID="hdn_Status_Code" runat="server" Value='<%# Eval("Status_Code") %>' />
+                                        </td>
+                                        <td>
+                                            <%# DataBinder.Eval(Container.DataItem, "FullName")%>
+                                            (<%# DataBinder.Eval(Container.DataItem, "UserID")%>)
+                                            <br>
+                                            <%# DataBinder.Eval(Container.DataItem, "JobTitle")%>
+                                        </td>
+                                        <td>
+                                            <asp:Label ID="lblDayDate" runat="server" Text='<%# Convert.ToDateTime(DataBinder.Eval(Container.DataItem, "Day_Date")).ToString("dddd MMM dd, yyyy")%>'></asp:Label>
+                                        </td>
+                                        <td>
+                                            <asp:Label runat="server" ID="lblTimein" Text='<%# Convert.ToDateTime(DataBinder.Eval(Container.DataItem, "Start_Time")).ToString("MMM dd, yyyy HH:mm")%>'></asp:Label>
+                                        </td>
+                                        <td>
+                                            <asp:Label runat="server" ID="lblTimeout" Text='<%# Convert.ToDateTime(DataBinder.Eval(Container.DataItem, "End_Time")).ToString("MMM dd, yyyy HH:mm")%>'></asp:Label>
+                                        </td>
+                                        <%--<td>
+                                            <asp:TextBox ID="txtOverTime" runat="server" CssClass="textbox" onkeypress="if(event.keyCode<48 || event.keyCode>58) return false;" onbeforepaste="clipboardData.setData('Text', '','');" autocomplete="off"
+                                                Text='<%# Eval("OverTimeHours") %>' Width="43px" MaxLength="5"></asp:TextBox>
+                                        </td>--%>
+                                        <td>
+                                            <asp:DropDownList ID="ddlStatus" runat="server" CssClass="combobox">
+                                            </asp:DropDownList>
+                                        </td>
+                                        <td>
+                                            <asp:TextBox ID="txtComment" runat="server" Width="300px" TextMode="MultiLine" class="Commentstxt" data-maxlength="50" Text='<%#Eval("Reason") %>'></asp:TextBox>
+                                        </td>
+                                    </tr>
+                                </ItemTemplate>
+                                <FooterTemplate>
+                                    </tbody> </table>
+                                </FooterTemplate>
+                            </asp:Repeater>
+                        </td>
+                    </tr>
+                </ItemTemplate>
+                <FooterTemplate>
+                    </table>
+                </FooterTemplate>
+            </asp:Repeater>
+        </div>
+        <div align="center" style="margin-top: 10px;">
+            <asp:Button ID="btnSave" runat="server" CssClass="btn-active" Text="Save" OnClick="btnSave_Click" Visible="false"
+                OnClientClick="return Validate();" />
+        </div>
+    </div>
+</asp:Content>
+
+
+using System;
+using System.Data;
+using System.Configuration;
+using System.Collections;
+using System.Web;
+using System.Web.Security;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Web.UI.WebControls.WebParts;
+using System.Web.UI.HtmlControls;
+using System.Data.SqlClient;
+
+public partial class PayrollReports_MarkStaffAttendance : System.Web.UI.Page
+{
+    DataSet ds = new DataSet();
+    CustomBasePage objCus = new CustomBasePage();
+    DBAccess objDB = new DBAccess();
+    DBAccess objDBPerformance = new DBAccess("Performance");
+    DataSet objds = new DataSet();
+
+    string SqlQuery = string.Empty;
+    int totalResults = 0;
+    string RAUserID = "0";
+
+    string cm = "-1", ra = "-1";
+    int days = 0, Negative = 1;
+    DateTime endDate;
+    DateTime sdate;
+    
+    protected void Page_Load(object sender, EventArgs e)
+    {
+        RAUserID = objCus.Usercode.ToString();
+        RAUserID = "660";
+        lblError.Text = lblSuccess.Text = string.Empty;
+        // CheckReportRights("130");
+        if (!IsPostBack)
+        {        
+            FillDates();
+            FillDepartment();
+            FillJobrole();
+
+            if (ddlDepartment.SelectedValue != "-2")
+            {
+                FillDeptUsers();
+            }           
+        }
+    }
+    private void CheckReportRights(string ReportCode)
+    {
+        string strSQL = "NPS_VerifyUserAuthorized " + RAUserID + "," + ReportCode + ",'" + Request.UserHostAddress + "'";
+        DBAccess objDBPerformance = new DBAccess("Performance");
+        DataSet ds = (DataSet)objDBPerformance.ExecuteQuery(strSQL, ReturnType.DataSetType);
+        if (ds.Tables[0].Rows.Count == 0)
+        {
+            Response.Redirect("http://myaxactweb:200/UnAuthorizedAccess.html");
+        }
+    }
+    private void FillDepartment()
+    {
+        try
+        {
+            string strSQL = "GetGrowthDataDepartment 2," + cm + "," + RAUserID;
+            ds = (DataSet)objDBPerformance.ExecuteQuery(strSQL, ReturnType.DataSetType);
+
+            if (ds != null && ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
+            {
+                ddlDepartment.Items.Clear();
+                ddlDepartment.DataSource = ds.Tables[0];
+                ddlDepartment.DataTextField = "deptName";
+                ddlDepartment.DataValueField = "department_code";
+                ddlDepartment.DataBind();
+                if (ra == "1")
+                {
+                    ddlDepartment.Items.Insert(0, new ListItem("Select All", "-1"));
+                }
+            }
+            else
+            {
+                ddlDepartment.Items.Add(new ListItem("No Department Found", "-2"));
+            }
+        }
+        catch (Exception ex)
+        {
+            lblError.Text = ex.Message;
+        }
+    }
+    private void FillJobrole()
+    {
+        try
+        {   
+            string strSQL = "SSPS_Select_JobRoleUnderRAOnDate_ForAR @role_owner_id='" + RAUserID + "',@MonthCode=" + DateTime.Now.Month.ToString() + ",@YearCode=" + DateTime.Now.Year.ToString() + "";
+            if (ddlDepartment.SelectedValue != "-1")
+            {
+                strSQL += ",@deptid=" + ddlDepartment.SelectedValue;
+            }
+
+            ds = (DataSet)objDBPerformance.ExecuteQuery(strSQL, ReturnType.DataSetType);
+            if (ds != null && ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
+            {
+                ddlJobRole.Items.Clear();
+                ddlJobRole.DataSource = ds.Tables[0];
+                ddlJobRole.DataTextField = "JobRole_Description";
+                ddlJobRole.DataValueField = "JobRole_Code";
+                ddlJobRole.DataBind();
+                if (ra == "1")
+                {
+                    ddlJobRole.Items.Insert(0, new ListItem("Select All", "-1"));
+                }
+            }
+            else
+            {
+                ddlJobRole.Items.Add(new ListItem("No Jobrole Found", "-2"));
+            }
+        }
+        catch (Exception ex)
+        {
+            lblError.Text = ex.Message;
+        }
+    } 
+    private void FillDeptUsers()
+    {
+        SqlQuery = "GetStaffUserByJobRole " + ddlJobRole.SelectedValue + "," + ddlDepartment.SelectedValue + "," + RAUserID;
+        ds = (DataSet)objDBPerformance.ExecuteQuery(SqlQuery, ReturnType.DataSetType);
+
+        if (ds != null && ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
+        {
+            ddlUsers.DataSource = ds.Tables[0];
+            ddlUsers.DataTextField = "Fullname";
+            ddlUsers.DataValueField = "user_code";
+            ddlUsers.DataBind();
+
+            ListItem li = new ListItem("Select All", "-1");
+            ddlUsers.Items.Insert(0, li);
+        }
+        else
+        {
+            ddlUsers.Items.Add(new ListItem("No User Found", "-2"));
+        }
+    }
+    private void FillDates()
+    {
+        SqlQuery = "hrs.dbo.HR_getStaffAttendanceDates ";
+        ds = (DataSet)objDB.ExecuteQuery(SqlQuery, ReturnType.DataSetType);
+
+        if (ds != null && ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
+        {
+            DataTable dt = ds.Tables[0];
+            DateTime date = Convert.ToDateTime(dt.Rows[0]["startdate"]);
+            DateTime edate = Convert.ToDateTime(dt.Rows[0]["enddate"]);
+
+            txtFromDate.Text = date.ToString("MMM dd, yyyy");
+            txtToDate.Text = edate.ToString("MMM dd, yyyy");
+            txtFromDate.Attributes.Add("readonly", "readonly");
+            txtToDate.Attributes.Add("readonly", "readonly");   
+        }        
+    }
+    private void FillData()
+    {
+        try
+        {
+            rptUser.DataSource = null;
+            rptUser.DataBind();
+            string strSQL = "hrs.dbo.XPV_Select_StaffAttendance @date_from = '" + txtFromDate.Text + "', @date_to = '" + txtToDate.Text + "'";
+            if (ddlDepartment.SelectedValue != "-1")
+                strSQL += ", @deptid =" + ddlDepartment.SelectedValue;
+            if (ddlJobRole.SelectedValue != "-1")
+                strSQL += ", @JobRoleid =" + ddlJobRole.SelectedValue;
+            if (txtUser.Text.Trim() != "")
+                strSQL += ", @username ='" + SqlInjection.RemoveHarmfullCharacter(txtUser.Text.Trim()) + "'";
+            if (ddlUsers.SelectedValue != "-2")
+                strSQL += ", @userid =" + ddlUsers.SelectedValue;
+            strSQL += ",@role_owner_id =" + RAUserID;
+
+            objds = (DataSet)objDB.ExecuteQuery(strSQL, ReturnType.DataSetType);
+
+            if (objds != null && objds.Tables.Count == 2 && objds.Tables[0].Rows.Count > 0 )
+            {
+                rptUser.DataSource = objds.Tables[0];
+                rptUser.DataBind();
+                btnSave.Visible = true;
+            }
+            else
+            {
+                lblError.Text = "No result(s) found.";
+                btnSave.Visible = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            lblError.Text = ex.Message;
+        }
+    }
+    protected void ddlDepartment_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        FillJobrole();
+        FillDeptUsers();
+    }
+    protected void ddlJobrole_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        FillDeptUsers();
+    }
+    protected void btnSearch_Click(object sender, EventArgs e)
+    {
+        FillData();
+    }
+    protected void btnRemoveDeduction_Click(object sender, EventArgs e)
+    {
+
+    }
+    protected void rptFunction_ItemDataBound(object sender, RepeaterItemEventArgs e)
+    {
+        if ((e.Item.ItemType == ListItemType.Item) || (e.Item.ItemType == ListItemType.AlternatingItem))
+        {
+            HtmlTableRow trDetails = (HtmlTableRow)e.Item.FindControl("trDetails");
+
+            if (Convert.ToInt32(DataBinder.Eval(e.Item.DataItem, "ApprovedDayAllowance")) > 0)
+                trDetails.BgColor = "#c0ffa6";
+            else if (Convert.ToInt32(DataBinder.Eval(e.Item.DataItem, "IsOffDay")) > 0)
+                trDetails.BgColor = "#fdeeb6";
+            else if (Convert.ToInt32(DataBinder.Eval(e.Item.DataItem, "OverTime")) > 0)
+                trDetails.BgColor = "#d6effc";
+
+            DropDownList ddl = (DropDownList)e.Item.FindControl("ddlStatus");
+            FillAllowanceType(ddl);
+            ddl.SelectedValue = Convert.ToDouble(DataBinder.Eval(e.Item.DataItem, "ApprovedDayAllowance")).ToString();
+        }
+    }
+    private DataSet GetSalaryMonth()
+    {
+        DataSet dsSalaryMonth = new DataSet();
+        SqlConnection connection = new SqlConnection(ConfigurationManager.AppSettings["ConnectionStringHrs"].ToString());
+        SqlCommand sqlCommand = new SqlCommand("PR_Select_SalaryMonth", connection);
+        sqlCommand.CommandType = CommandType.StoredProcedure;
+        SqlDataAdapter sqlAdapter = new SqlDataAdapter(sqlCommand);
+        sqlAdapter.Fill(dsSalaryMonth);
+        return dsSalaryMonth;
+    }   
+    private void DeleteAttendance(int sheetCode)
+    {
+        SqlConnection connection = new SqlConnection(ConfigurationManager.AppSettings["ConnectionStringHrs"].ToString());
+        SqlCommand sqlCommand = new SqlCommand("HR_Delete_StaffAttendance", connection);
+        sqlCommand.Parameters.AddWithValue("@sheet_Code", sheetCode);
+        sqlCommand.Parameters.AddWithValue("@Comments", sheetCode);       
+        sqlCommand.CommandType = CommandType.StoredProcedure;
+        connection.Open();
+        sqlCommand.ExecuteNonQuery();
+        connection.Close();
+    }
+    protected void rptUser_ItemDataBound(object sender, RepeaterItemEventArgs e)
+    {
+        if (e.Item.ItemType == ListItemType.Item || e.Item.ItemType == ListItemType.AlternatingItem)
+        {
+            HtmlImage imgExpandCollapse = (HtmlImage)e.Item.FindControl("imgExpandCollapse");
+            HtmlTableRow trFunction = (HtmlTableRow)e.Item.FindControl("trFunction");
+            HiddenField hdnUserCode = (HiddenField)e.Item.FindControl("hdnUserCode");
+            Repeater rptFunction = (Repeater)e.Item.FindControl("rptFunction");
+            System.Web.UI.WebControls.Image userImage = (System.Web.UI.WebControls.Image)e.Item.FindControl("UserImage");
+
+            userImage.Attributes["src"] = System.IO.Path.Combine(ConfigurationManager.AppSettings["SupportStaffImagePath"], DataBinder.Eval(e.Item.DataItem, "Photo_name").ToString() + ".jpg");
+            imgExpandCollapse.Attributes.Add("onclick", "ShowHideDayDetails(" + trFunction.ClientID + ", " + imgExpandCollapse.ClientID + ");");
+
+            DataView dv = objds.Tables[1].DefaultView;
+            dv.RowFilter = "userID = " + hdnUserCode.Value;
+            if (dv != null)
+            {
+                rptFunction.DataSource = dv.ToTable();
+                rptFunction.DataBind();
+            }
+        }
+    }
+    protected void rptFunction_ItemCommand(object source, RepeaterCommandEventArgs e)
+    {
+        if (e.CommandName == "Remove")
+        {
+            string Sheet_Code = e.CommandArgument.ToString();
+
+            TextBox txtComment = (TextBox)e.Item.FindControl("txtComment");            
+            DeleteAttendance(Convert.ToInt32(Sheet_Code));
+        }       
+    }
+    private void FillAllowanceType(DropDownList ddl)
+    {
+        try
+        {
+            objDB = new DBAccess();
+            string strSQL = "Get_All_AllowanceType";
+            DataSet ds = (DataSet)objDB.ExecuteQuery(strSQL, ReturnType.DataSetType);
+            ddl.DataSource = ds;
+            ddl.DataTextField = "Allowance_Name";
+            ddl.DataValueField = "Salary_Factor";
+            ddl.DataBind();
+        }
+        catch (Exception ex)
+        {
+            lblError.Text = ex.Message;
+        }
+    }
+    protected void btnSave_Click(object sender, EventArgs e)
+    {  
+        try
+        {
+            string strSQL = "";
+            for (int j = 0; j < rptUser.Items.Count; j++)
+            {
+                Repeater rptFunction = (Repeater)rptUser.Items[j].FindControl("rptFunction");
+                for (int k = 0; k < rptFunction.Items.Count; k++)
+                {
+                    CheckBox chkSelect = (CheckBox)rptFunction.Items[k].FindControl("chkSelect");
+                    if (chkSelect.Checked)
+                    {
+                        HiddenField Sheet_Code = (HiddenField)rptFunction.Items[k].FindControl("Sheet_Code");
+                        HiddenField User_Code = (HiddenField)rptFunction.Items[k].FindControl("hdn_userCode");
+                        HiddenField hdn_Status_Code = (HiddenField)rptFunction.Items[k].FindControl("hdn_Status_Code");
+
+                        TextBox txtComment = (TextBox)rptFunction.Items[k].FindControl("txtComment");
+                        double factor = Convert.ToDouble(((DropDownList)rptFunction.Items[k].FindControl("ddlStatus")).SelectedValue);
+
+                        //int iOvertime = 0;
+                        int iEarlyTime = 0;
+                        //int totalOvertime = 0;
+                        string reason = "";
+
+                        //iOvertime = (Convert.ToInt32(((TextBox)rptFunction.Items[k].FindControl("txtOverTime")).Text.Substring(0, ((TextBox)rptFunction.Items[k].FindControl("txtOverTime")).Text.IndexOf(":"))) * 60) +
+                        //Convert.ToInt32(((TextBox)rptFunction.Items[k].FindControl("txtOverTime")).Text.Substring(((TextBox)rptFunction.Items[k].FindControl("txtOverTime")).Text.IndexOf(":") + 1));
+                        reason = SqlInjection.RemoveHarmfullCharacter(txtComment.Text);
+                        
+                        strSQL = "HR_InsertDay_Allowance  " +
+                        hdn_Status_Code.Value + "," + factor + "," +
+                        RAUserID + ",'" +
+                        Request.UserHostAddress.ToString() + "','" +
+                        reason + "'";
+                        objDB.ExecuteNonQuery(strSQL);
+
+                        //strSQL = "HR_UpdateOverTimeNew " + hdn_Status_Code.Value + "," + iOvertime + ",1" + ",'" +
+                        //reason + "'," + RAUserID + ",'" + Request.UserHostAddress + "'";
+                        //objDB.ExecuteNonQuery(strSQL); 
+                    }
+                }
+                lblSuccess.Text = "Data has been saved successfully.";
+            }
+            FillData();
+        }
+        catch (Exception ex)
+        {
+            lblError.Text = ex.Message;
+        }
+    }
+}
